@@ -14,6 +14,10 @@ resource "aws_dynamodb_table" "workouts" {
     name = "WorkoutID"
     type = "S"
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_dynamodb_table" "exercises" {
@@ -25,5 +29,9 @@ resource "aws_dynamodb_table" "exercises" {
   attribute {
     name = "ExerciseID"
     type = "S"
+  }
+
+  lifecycle {
+    prevent_destroy = true
   }
 }

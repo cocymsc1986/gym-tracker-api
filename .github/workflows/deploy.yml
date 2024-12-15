@@ -28,15 +28,10 @@ jobs:
         run: |
           GOOS=linux GOARCH=amd64 go build -o main main.go
 
-      - name: Create ZIP for Lambda
-        run: |
-          zip main.zip main
-
-      - name: Upload ZIP Artifact
-        uses: actions/upload-artifact@v3
+      - name: Zip build
+        uses: montudor/action-zip@v0.1.0
         with:
-          name: lambda-zip
-          path: main.zip
+          args: zip -qq -r ./lambda.zip . -i main
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -55,5 +50,5 @@ jobs:
         working-directory: ./terraform
 
       - name: Apply Terraform
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve -var "lambda_zip_file=$GITHUB_WORKSPACE/lambda.zip"
         working-directory: ./terraform

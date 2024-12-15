@@ -1,44 +1,64 @@
-resource "aws_apigatewayv2_api" "gym_tracker_api" {
-  name          = "GymTrackerAPI"
-  protocol_type = "HTTP"
+resource "aws_api_gateway_rest_api" "gym_tracker_api" {
+  name        = "GymTrackerAPI"
+  description = "API for tracking gym workouts"
 }
 
-resource "aws_apigatewayv2_api_key" "gym_tracker_api_key" {
+resource "aws_api_gateway_resource" "workouts_resource" {
+  rest_api_id = aws_api_gateway_rest_api.gym_tracker_api.id
+  parent_id   = aws_api_gateway_rest_api.gym_tracker_api.root_resource_id
+  path_part   = "workouts"
+}
+
+resource "aws_api_gateway_method" "workouts_method" {
+  rest_api_id   = aws_api_gateway_rest_api.gym_tracker_api.id
+  resource_id   = aws_api_gateway_resource.workouts_resource.id
+  http_method   = "ANY"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_deployment" "api_deployment" {
+  rest_api_id = aws_api_gateway_rest_api.gym_tracker_api.id
+  stage_name  = "production"
+
+  depends_on = [
+    aws_api_gateway_method.workouts_method
+  ]
+}
+
+resource "aws_api_gateway_api_key" "gym_tracker_api_key" {
   name        = "GymTrackerAPIKey"
   description = "API key for securing Gym Tracker API"
   enabled     = true
 }
 
-resource "aws_apigatewayv2_usage_plan" "gym_tracker_usage_plan" {
-  api_stages {
-    api_id = aws_apigatewayv2_api.gym_tracker_api.id
-    stage  = aws_apigatewayv2_stage.api_stage.name
-  }
-
+resource "aws_api_gateway_usage_plan" "gym_tracker_usage_plan" {
   name = "GymTrackerUsagePlan"
+
+  api_stages {
+    api_id = aws_api_gateway_rest_api.gym_tracker_api.id
+    stage  = aws_api_gateway_deployment.api_deployment.stage_name
+  }
 }
 
-resource "aws_apigatewayv2_usage_plan_key" "api_key_association" {
-  key_id        = aws_apigatewayv2_api_key.gym_tracker_api_key.id
+resource "aws_api_gateway_usage_plan_key" "api_key_association" {
+  key_id        = aws_api_gateway_api_key.gym_tracker_api_key.id
   key_type      = "API_KEY"
-  usage_plan_id = aws_apigatewayv2_usage_plan.gym_tracker_usage_plan.id
+  usage_plan_id = aws_api_gateway_usage_plan.gym_tracker_usage_plan.id
 }
 
-resource "aws_apigatewayv2_integration" "lambda_integration" {
-  api_id             = aws_apigatewayv2_api.gym_tracker_api.id
-  integration_type   = "AWS_PROXY"
-  integration_uri    = aws_lambda_function.api_handler.invoke_arn
-  payload_format_version = "2.0"
+resource "aws_api_gateway_integration" "lambda_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.gym_tracker_api.id
+  resource_id             = aws_api_gateway_resource.workouts_resource.id
+  http_method             = aws_api_gateway_method.workouts_method.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.api_handler.invoke_arn
+
+  depends_on = [
+    aws_api_gateway_method.workouts_method
+  ]
 }
 
-resource "aws_apigatewayv2_route" "workouts_route" {
-  api_id    = aws_apigatewayv2_api.gym_tracker_api.id
-  route_key = "ANY /workouts/{proxy+}"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
-}
-
-resource "aws_apigatewayv2_stage" "api_stage" {
-  api_id      = aws_apigatewayv2_api.gym_tracker_api.id
-  name        = "production"
-  auto_deploy = true
+output "api_endpoint" {
+  value = aws_api_gateway_deployment.api_deployment.invoke_url
 }

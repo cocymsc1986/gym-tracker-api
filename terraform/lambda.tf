@@ -1,10 +1,10 @@
 resource "aws_lambda_function" "api_handler" {
-  filename         = "./main.zip"
+  filename         = "${path.module}/main.zip"
   function_name    = "GymTrackerAPIHandler"
   role             = aws_iam_role.lambda_exec.arn
   handler          = "main"
   runtime          = "go1.x"
-  source_code_hash = filebase64sha256("./main.zip")
+  source_code_hash = filebase64sha256(var.lambda_zip_file)
 
   environment {
     variables = {
