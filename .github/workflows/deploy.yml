@@ -1,0 +1,57 @@
+name: Build and Deploy to AWS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: us-east-1
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Set up Go environment
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.20"
+
+      - name: Install Dependencies
+        run: |
+          go mod tidy
+
+      - name: Build Go Binary
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o main main.go
+
+      - name: Create ZIP for Lambda
+        run: |
+          zip main.zip main
+
+      - name: Upload ZIP Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: lambda-zip
+          path: main.zip
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.5.0
+
+      - name: Initialize Terraform
+        run: terraform init
+
+      - name: Apply Terraform (Deploy Infrastructure)
+        run: terraform apply -auto-approve
