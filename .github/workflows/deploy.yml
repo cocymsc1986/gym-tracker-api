@@ -33,7 +33,7 @@ jobs:
           zip main.zip main
 
       - name: Upload ZIP Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: lambda-zip
           path: main.zip
@@ -52,6 +52,8 @@ jobs:
 
       - name: Initialize Terraform
         run: terraform init
+        working-directory: ./terraform
 
-      - name: Apply Terraform (Deploy Infrastructure)
+      - name: Apply Terraform
         run: terraform apply -auto-approve
+        working-directory: ./terraform

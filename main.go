@@ -55,7 +55,7 @@ func init() {
 func GetWorkout(w http.ResponseWriter, r *http.Request) {
 	userID := mux.Vars(r)["userId"]
 	result, err := db.GetItem(&dynamodb.GetItemInput{
-		TableName: aws.String(os.Getenv("TABLE_WORKOUTS")),
+		TableName: aws.String(os.Getenv("DYNAMO_TABLE_WORKOUTS")),
 		Key: map[string]*dynamodb.AttributeValue{
 			"UserID": {
 				S: aws.String(userID),
@@ -74,7 +74,7 @@ func CreateWorkout(w http.ResponseWriter, r *http.Request) {
 	var workout Workout
 	json.NewDecoder(r.Body).Decode(&workout)
 	_, err := db.PutItem(&dynamodb.PutItemInput{
-		TableName: aws.String(os.Getenv("TABLE_WORKOUTS")),
+		TableName: aws.String(os.Getenv("DYNAMO_TABLE_WORKOUTS")),
 		Item: map[string]*dynamodb.AttributeValue{
 			"UserID": {
 				S: aws.String(workout.UserID),
@@ -99,7 +99,7 @@ func AddExercise(w http.ResponseWriter, r *http.Request) {
 	var exercise Exercise
 	json.NewDecoder(r.Body).Decode(&exercise)
 	_, err := db.PutItem(&dynamodb.PutItemInput{
-		TableName: aws.String(os.Getenv("TABLE_EXERCISES")),
+		TableName: aws.String(os.Getenv("DYNAMO_TABLE_EXERCISES")),
 		Item: map[string]*dynamodb.AttributeValue{
 			"ExerciseID": {S: aws.String(exercise.ExerciseID)},
 			"Name":       {S: aws.String(exercise.Name)},
@@ -123,7 +123,7 @@ func UpdateWorkout(w http.ResponseWriter, r *http.Request) {
 	var workout Workout
 	json.NewDecoder(r.Body).Decode(&workout)
 	_, err := db.UpdateItem(&dynamodb.UpdateItemInput{
-		TableName: aws.String(os.Getenv("TABLE_WORKOUTS")),
+		TableName: aws.String(os.Getenv("DYNAMO_TABLE_WORKOUTS")),
 		Key: map[string]*dynamodb.AttributeValue{
 			"UserID":    {S: aws.String(workout.UserID)},
 			"WorkoutID": {S: aws.String(workout.WorkoutID)},
@@ -144,7 +144,7 @@ func UpdateWorkout(w http.ResponseWriter, r *http.Request) {
 
 func GetExercises(w http.ResponseWriter, r *http.Request) {
 	result, err := db.Scan(&dynamodb.ScanInput{
-		TableName: aws.String(os.Getenv("TABLE_EXERCISES")),
+		TableName: aws.String(os.Getenv("DYNAMO_TABLE_EXERCISES")),
 	})
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
