@@ -33,6 +33,9 @@ jobs:
         with:
           args: zip -qq -r ./lambda.zip . -i main
 
+      - name: List directory contents
+        run: ls -al ${{ github.workspace }}
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
