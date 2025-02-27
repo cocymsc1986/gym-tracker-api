@@ -50,5 +50,5 @@ jobs:
         working-directory: ./terraform
 
       - name: Apply Terraform
-        run: terraform apply -auto-approve -var "lambda_zip_file=$GITHUB_WORKSPACE/lambda.zip"
+        run: terraform apply -auto-approve -var "lambda_zip_file=${{ github.workspace }}/lambda.zip"
         working-directory: ./terraform
