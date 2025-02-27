@@ -16,12 +16,26 @@ resource "aws_api_gateway_method" "workouts_method" {
   authorization = "NONE"
 }
 
+resource "aws_api_gateway_integration" "lambda_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.gym_tracker_api.id
+  resource_id             = aws_api_gateway_resource.workouts_resource.id
+  http_method             = aws_api_gateway_method.workouts_method.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.api_handler.invoke_arn
+
+  depends_on = [
+    aws_api_gateway_method.workouts_method
+  ]
+}
+
 resource "aws_api_gateway_deployment" "api_deployment" {
   rest_api_id = aws_api_gateway_rest_api.gym_tracker_api.id
   stage_name  = "production"
 
   depends_on = [
-    aws_api_gateway_method.workouts_method
+    aws_api_gateway_method.workouts_method,
+    aws_api_gateway_integration.lambda_integration
   ]
 }
 
@@ -44,19 +58,6 @@ resource "aws_api_gateway_usage_plan_key" "api_key_association" {
   key_id        = aws_api_gateway_api_key.gym_tracker_api_key.id
   key_type      = "API_KEY"
   usage_plan_id = aws_api_gateway_usage_plan.gym_tracker_usage_plan.id
-}
-
-resource "aws_api_gateway_integration" "lambda_integration" {
-  rest_api_id             = aws_api_gateway_rest_api.gym_tracker_api.id
-  resource_id             = aws_api_gateway_resource.workouts_resource.id
-  http_method             = aws_api_gateway_method.workouts_method.http_method
-  integration_http_method = "POST"
-  type                    = "AWS_PROXY"
-  uri                     = aws_lambda_function.api_handler.invoke_arn
-
-  depends_on = [
-    aws_api_gateway_method.workouts_method
-  ]
 }
 
 output "api_endpoint" {
