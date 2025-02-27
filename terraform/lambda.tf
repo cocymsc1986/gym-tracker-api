@@ -1,5 +1,5 @@
 resource "aws_lambda_function" "api_handler" {
-  filename         = "${path.module}/${var.lambda_zip_file}"
+  filename         = var.lambda_zip_file
   function_name    = "GymTrackerAPIHandler"
   role             = aws_iam_role.lambda_exec.arn
   handler          = "main"
