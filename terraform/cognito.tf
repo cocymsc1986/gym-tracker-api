@@ -55,7 +55,6 @@ resource "aws_cognito_user_pool_client" "gym_tracker_client" {
   generate_secret                      = false
   prevent_user_existence_errors        = "ENABLED"
   enable_token_revocation             = true
-  enable_propagate_additional_user_context_data = false
 
   # Auth flows
   explicit_auth_flows = [
@@ -77,10 +76,6 @@ resource "aws_cognito_user_pool_client" "gym_tracker_client" {
 
   # Supported identity providers
   supported_identity_providers = ["COGNITO"]
-
-  tags = {
-    Name = "gym-tracker-client"
-  }
 }
 
 # Cognito User Pool Domain
