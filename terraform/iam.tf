@@ -40,3 +40,28 @@ resource "aws_iam_role_policy" "lambda_dynamo_policy" {
     ]
   })
 }
+
+resource "aws_iam_role_policy" "lambda_cognito_policy" {
+  name = "LambdaCognitoPolicy"
+  role = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "cognito-idp:AdminInitiateAuth",
+          "cognito-idp:AdminCreateUser",
+          "cognito-idp:AdminSetUserPassword",
+          "cognito-idp:GetUser",
+          "cognito-idp:InitiateAuth",
+          "cognito-idp:SignUp",
+          "cognito-idp:ConfirmSignUp",
+          "cognito-idp:ResendConfirmationCode"
+        ]
+        Effect   = "Allow"
+        Resource = aws_cognito_user_pool.gym_tracker_pool.arn
+      }
+    ]
+  })
+}
