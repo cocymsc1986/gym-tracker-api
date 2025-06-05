@@ -10,6 +10,8 @@ resource "aws_lambda_function" "api_handler" {
     variables = {
       DYNAMODB_WORKOUTS_TABLE = aws_dynamodb_table.workouts.name
       DYNAMODB_EXERCISES_TABLE = aws_dynamodb_table.exercises.name
+      COGNITO_USER_POOL_ID = aws_cognito_user_pool.gym_tracker_pool.id
+      COGNITO_CLIENT_ID = aws_cognito_user_pool_client.gym_tracker_client.id
     }
   }
 }
