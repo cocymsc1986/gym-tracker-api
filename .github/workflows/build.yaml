@@ -4,7 +4,7 @@ on:
   pull_request:
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,8 +19,6 @@ jobs:
       - name: Install Dependencies
         run: |
           go mod tidy
-
-            - name: Build Go Binary
 
       - name: Build Go Binary
         run: |
