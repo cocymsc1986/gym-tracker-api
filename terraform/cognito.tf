@@ -3,7 +3,6 @@ resource "aws_cognito_user_pool" "gym_tracker_pool" {
   name = "gym-tracker-users"
 
   # User attributes
-  alias_attributes = ["email"]
   auto_verified_attributes = ["email"]
 
   # Password policy

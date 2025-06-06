@@ -1,3 +1,5 @@
 .env
 terraform/.terraform/**/*
 terraform/.terraform.lock.hcl
+
+__debug_*
