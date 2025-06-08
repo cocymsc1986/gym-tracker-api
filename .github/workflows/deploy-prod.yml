@@ -1,24 +1,27 @@
-name: Build and Deploy to AWS
+name: Deploy to Production Environment
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  deploy-prod:
     runs-on: ubuntu-latest
+    environment: production
 
     env:
       AWS_REGION: us-east-1
+      ENVIRONMENT: prod
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Go environment
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
-          go-version: "1.20"
+          go-version: "1.21"
 
       - name: Install Dependencies
         run: |
@@ -29,29 +32,32 @@ jobs:
           GOOS=linux GOARCH=amd64 go build -o main ./cmd/api/main.go
 
       - name: Zip build
-        uses: montudor/action-zip@v0.1.0
+        uses: montudor/action-zip@v1
         with:
           args: zip -qq -r ./lambda.zip . -i main
 
-      - name: List directory contents
-        run: ls -al ${{ github.workspace }}
-
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Install Terraform
-        uses: hashicorp/setup-terraform@v1
+        uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.5.0
+          terraform_version: 1.6.0
 
       - name: Initialize Terraform
-        run: terraform init
+        run: |
+          cp environments/prod/backend.tf .
+          terraform init
+        working-directory: ./terraform
+
+      - name: Terraform Plan
+        run: terraform plan -var-file="environments/prod/terraform.tfvars" -var "lambda_zip_file=${{ github.workspace }}/lambda.zip"
         working-directory: ./terraform
 
       - name: Apply Terraform
-        run: terraform apply -auto-approve -var "lambda_zip_file=${{ github.workspace }}/lambda.zip"
+        run: terraform apply -auto-approve -var-file="environments/prod/terraform.tfvars" -var "lambda_zip_file=${{ github.workspace }}/lambda.zip"
         working-directory: ./terraform

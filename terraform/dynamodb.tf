@@ -1,5 +1,5 @@
 resource "aws_dynamodb_table" "workouts" {
-  name         = "Workouts"
+  name         = "Workouts-${var.environment}"
   billing_mode = "PAY_PER_REQUEST"
 
   hash_key = "UserID"
@@ -15,13 +15,15 @@ resource "aws_dynamodb_table" "workouts" {
     type = "S"
   }
 
-  lifecycle {
-    prevent_destroy = true
+
+  tags = {
+    Environment = var.environment
+    Project     = "gym-tracker"
   }
 }
 
 resource "aws_dynamodb_table" "exercises" {
-  name         = "Exercises"
+  name         = "Exercises-${var.environment}"
   billing_mode = "PAY_PER_REQUEST"
 
   hash_key = "ExerciseID"
@@ -31,7 +33,20 @@ resource "aws_dynamodb_table" "exercises" {
     type = "S"
   }
 
-  lifecycle {
-    prevent_destroy = true
+  attribute {
+    name = "ExerciseType"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "ExerciseTypeIndex"
+    hash_key        = "ExerciseType"
+    projection_type = "ALL"
+  }
+
+
+  tags = {
+    Environment = var.environment
+    Project     = "gym-tracker"
   }
 }

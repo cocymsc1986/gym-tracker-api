@@ -96,22 +96,14 @@ func (h *WorkoutHandler) AddExerciseToWorkout(w http.ResponseWriter, r *http.Req
 	vars := mux.Vars(r)
 	userID := vars["userId"]
 	workoutID := vars["workoutId"]
-	var exercise models.Exercise
-	if err := utils.DecodeJSON(r.Body, &exercise); err != nil {
-		utils.WriteErrorResponse(w, err)
-		return
-	}
-	if err := exercise.Validate(); err != nil {
+	exerciseID := vars["exerciseId"]
+
+	if err := h.service.AddExerciseToWorkout(userID, workoutID, exerciseID); err != nil {
 		utils.WriteErrorResponse(w, err)
 		return
 	}
 
-	if err := h.service.AddExerciseToWorkout(userID, workoutID, &exercise); err != nil {
-		utils.WriteErrorResponse(w, err)
-		return
-	}
-
-	utils.WriteJSONResponse(w, exercise, http.StatusCreated)
+	utils.WriteJSONResponse(w, exerciseID, http.StatusCreated)
 }
 
 func (h *WorkoutHandler) RemoveExerciseFromWorkout(w http.ResponseWriter, r *http.Request) {
@@ -140,10 +132,7 @@ func (h *WorkoutHandler) ListExercisesInWorkout(w http.ResponseWriter, r *http.R
 	}
 	exercises := workout.Exercises
 	if exercises == nil {
-		exercises = []models.Exercise{}
-	}
-	if len(exercises) == 0 {
-		exercises = []models.Exercise{}
+		exercises = []string{}
 	}
 
 	utils.WriteJSONResponse(w, exercises, http.StatusOK)

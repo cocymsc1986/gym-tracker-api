@@ -80,7 +80,7 @@ func main() {
 	r.HandleFunc("/workouts/{userId}/{workoutId}", authMiddleware.Authenticate(workoutHandler.UpdateWorkout)).Methods("PUT")
 	r.HandleFunc("/workouts/{userId}/{workoutId}", authMiddleware.Authenticate(workoutHandler.DeleteWorkout)).Methods("DELETE")
 	r.HandleFunc("/workouts/{userId}/{workoutId}/exercises", authMiddleware.Authenticate(workoutHandler.ListExercisesInWorkout)).Methods("GET")
-	r.HandleFunc("/workouts/{userId}/{workoutId}/exercises", authMiddleware.Authenticate(workoutHandler.AddExerciseToWorkout)).Methods("POST")
+	r.HandleFunc("/workouts/{userId}/{workoutId}/exercises/{exerciseId}", authMiddleware.Authenticate(workoutHandler.AddExerciseToWorkout)).Methods("POST")
 	r.HandleFunc("/workouts/{userId}/{workoutId}/exercises/{exerciseId}", authMiddleware.Authenticate(workoutHandler.RemoveExerciseFromWorkout)).Methods("DELETE")
 	r.HandleFunc("/exercises", authMiddleware.Authenticate(exerciseHandler.GetExercises)).Methods("GET")
 	r.HandleFunc("/exercises/{exerciseId}", authMiddleware.Authenticate(exerciseHandler.GetExercise)).Methods("GET")

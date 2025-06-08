@@ -1,6 +1,11 @@
 resource "aws_api_gateway_rest_api" "gym_tracker_api" {
-  name        = "GymTrackerAPI"
-  description = "API for tracking gym workouts"
+  name        = "GymTrackerAPI-${var.environment}"
+  description = "API for tracking gym workouts - ${var.environment}"
+
+  tags = {
+    Environment = var.environment
+    Project     = "gym-tracker"
+  }
 }
 
 resource "aws_api_gateway_resource" "workouts_resource" {
@@ -31,7 +36,7 @@ resource "aws_api_gateway_integration" "lambda_integration" {
 
 resource "aws_api_gateway_deployment" "api_deployment" {
   rest_api_id = aws_api_gateway_rest_api.gym_tracker_api.id
-  stage_name  = "production"
+  stage_name  = var.environment
 
   depends_on = [
     aws_api_gateway_method.workouts_method,
@@ -40,13 +45,18 @@ resource "aws_api_gateway_deployment" "api_deployment" {
 }
 
 resource "aws_api_gateway_api_key" "gym_tracker_api_key" {
-  name        = "GymTrackerAPIKey"
-  description = "API key for securing Gym Tracker API"
+  name        = "GymTrackerAPIKey-${var.environment}"
+  description = "API key for securing Gym Tracker API - ${var.environment}"
   enabled     = true
+
+  tags = {
+    Environment = var.environment
+    Project     = "gym-tracker"
+  }
 }
 
 resource "aws_api_gateway_usage_plan" "gym_tracker_usage_plan" {
-  name = "GymTrackerUsagePlan"
+  name = "GymTrackerUsagePlan-${var.environment}"
 
   api_stages {
     api_id = aws_api_gateway_rest_api.gym_tracker_api.id

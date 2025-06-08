@@ -2,7 +2,6 @@ package db
 
 import (
 	"fmt"
-	"time"
 
 	"gym-tracker-api/internal/models"
 
@@ -76,7 +75,6 @@ func (r *DynamoExerciseRepository) ListByUserID(userID string) ([]*models.Exerci
 }
 
 func (r *DynamoExerciseRepository) Create(exercise *models.Exercise) error {
-	exercise.ExerciseID = fmt.Sprintf("EX-%d", time.Now().UnixNano())
 	av, err := dynamodbattribute.MarshalMap(exercise)
 	if err != nil {
 		return fmt.Errorf("failed to marshal exercise: %w", err)
@@ -139,24 +137,25 @@ func (r *DynamoExerciseRepository) Delete(userID, exerciseID string) error {
 	return nil
 }
 
-func (r *DynamoExerciseRepository) ListByTag(userID, tag string) ([]*models.Exercise, error) {
+func (r *DynamoExerciseRepository) ListByType(userID, exerciseType string) ([]*models.Exercise, error) {
 	queryInput := &dynamodb.QueryInput{
 		TableName:              aws.String(r.tableName),
-		KeyConditionExpression: aws.String("UserID = :userID"),
-		FilterExpression:       aws.String("contains(Tags, :tag)"),
+		IndexName:              aws.String("ExerciseTypeIndex"),
+		KeyConditionExpression: aws.String("ExerciseType = :exerciseType"),
+		FilterExpression:       aws.String("UserID = :userID"),
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":exerciseType": {
+				S: aws.String(exerciseType),
+			},
 			":userID": {
 				S: aws.String(userID),
-			},
-			":tag": {
-				S: aws.String(tag),
 			},
 		},
 	}
 
 	result, err := r.db.Query(queryInput)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list exercises by tag: %w", err)
+		return nil, fmt.Errorf("failed to list exercises by exerciseType: %w", err)
 	}
 
 	var exercises []*models.Exercise

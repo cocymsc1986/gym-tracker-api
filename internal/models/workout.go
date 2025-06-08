@@ -9,7 +9,7 @@ type Workout struct {
 	UserID    string     `json:"userId" dynamodbav:"UserID" validate:"required"`
 	WorkoutID string     `json:"workoutId" dynamodbav:"WorkoutID" validate:"required"`
 	Name      string     `json:"name" validate:"required, min=1,max=100"`
-	Exercises []Exercise `json:"exercises"`
+	Exercises []string `json:"exercises"`
 	CreatedAt time.Time  `json:"createdAt"`
 }
 
