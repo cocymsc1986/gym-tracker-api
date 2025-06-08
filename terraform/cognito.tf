@@ -1,6 +1,6 @@
 # Cognito User Pool
 resource "aws_cognito_user_pool" "gym_tracker_pool" {
-  name = "gym-tracker-users"
+  name = "gym-tracker-users-${var.environment}"
 
   # User attributes
   auto_verified_attributes = ["email"]
@@ -41,13 +41,15 @@ resource "aws_cognito_user_pool" "gym_tracker_pool" {
   }
 
   tags = {
-    Name = "gym-tracker-user-pool"
+    Name        = "gym-tracker-user-pool"
+    Environment = var.environment
+    Project     = "gym-tracker"
   }
 }
 
 # Cognito User Pool Client
 resource "aws_cognito_user_pool_client" "gym_tracker_client" {
-  name         = "gym-tracker-client"
+  name         = "gym-tracker-client-${var.environment}"
   user_pool_id = aws_cognito_user_pool.gym_tracker_pool.id
 
   # Client settings
@@ -79,7 +81,7 @@ resource "aws_cognito_user_pool_client" "gym_tracker_client" {
 
 # Cognito User Pool Domain
 resource "aws_cognito_user_pool_domain" "gym_tracker_domain" {
-  domain       = "gym-tracker-${random_string.domain_suffix.result}"
+  domain       = "gym-tracker-${var.environment}-${random_string.domain_suffix.result}"
   user_pool_id = aws_cognito_user_pool.gym_tracker_pool.id
 }
 

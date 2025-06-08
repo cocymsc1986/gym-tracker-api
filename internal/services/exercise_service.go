@@ -11,7 +11,7 @@ type ExerciseService interface {
 	CreateExercise(exercise *models.Exercise) error
 	UpdateExercise(userID, exerciseID string, exercise *models.Exercise) error
 	DeleteExercise(userID, exerciseID string) error
-	ListExercisesByTag(userID, tag string) ([]*models.Exercise, error)
+	ListExercisesByType(userID, exerciseType string) ([]*models.Exercise, error)
 }
 
 type exerciseService struct {
@@ -59,8 +59,8 @@ func (s *exerciseService) DeleteExercise(userID, exerciseID string) error {
 	return s.repo.Delete(exerciseID, userID)
 }
 
-func (s *exerciseService) ListExercisesByTag(userID, tag string) ([]*models.Exercise, error) {
-	exercises, err := s.repo.ListByTag(userID, tag)
+func (s *exerciseService) ListExercisesByType(userID, exerciseType string) ([]*models.Exercise, error) {
+	exercises, err := s.repo.ListByType(userID, exerciseType)
 	if err != nil {
 		return nil, err
 	}

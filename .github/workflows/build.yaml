@@ -1,7 +1,9 @@
-name: Build
+name: Build and Test
 
 on:
   pull_request:
+  push:
+    branches-ignore: [main]
 
 jobs:
   build:
@@ -9,17 +11,26 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Go environment
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
-          go-version: "1.20"
+          go-version: "1.21"
 
       - name: Install Dependencies
         run: |
           go mod tidy
 
+      - name: Run Tests
+        run: |
+          go test ./...
+
       - name: Build Go Binary
         run: |
           GOOS=linux GOARCH=amd64 go build -o main ./cmd/api/main.go
+
+      - name: Verify Binary
+        run: |
+          file main
+          ls -la main

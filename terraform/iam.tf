@@ -1,8 +1,10 @@
 resource "aws_iam_role" "lambda_exec" {
-  name = "GymTrackerLambdaExecutionRole"
+  name = "GymTrackerLambdaExecutionRole-${var.environment}"
 
-  lifecycle {
-    prevent_destroy = true
+
+  tags = {
+    Environment = var.environment
+    Project     = "gym-tracker"
   }
 
   assume_role_policy = jsonencode({
@@ -23,7 +25,7 @@ resource "aws_iam_role_policy_attachment" "lambda_policy_attachment" {
 }
 
 resource "aws_iam_role_policy" "lambda_dynamo_policy" {
-  name = "LambdaDynamoDBPolicy"
+  name = "LambdaDynamoDBPolicy-${var.environment}"
   role = aws_iam_role.lambda_exec.id
 
   policy = jsonencode({
@@ -42,7 +44,7 @@ resource "aws_iam_role_policy" "lambda_dynamo_policy" {
 }
 
 resource "aws_iam_role_policy" "lambda_cognito_policy" {
-  name = "LambdaCognitoPolicy"
+  name = "LambdaCognitoPolicy-${var.environment}"
   role = aws_iam_role.lambda_exec.id
 
   policy = jsonencode({

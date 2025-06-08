@@ -11,7 +11,7 @@ type WorkoutService interface {
 	CreateWorkout(workout *models.Workout) error
 	UpdateWorkout(userID, workoutID string, workout *models.Workout) error
 	DeleteWorkout(userID, workoutID string) error
-	AddExerciseToWorkout(userID, workoutID string, exercise *models.Exercise) error
+	AddExerciseToWorkout(userID, workoutID string, exerciseID string) error
 	RemoveExerciseFromWorkout(userID, workoutID, exerciseID string) error
 }
 
@@ -59,10 +59,7 @@ func (s *workoutService) DeleteWorkout(userID, workoutID string) error {
 	return s.repo.Delete(workoutID, userID)
 }
 
-func (s *workoutService) AddExerciseToWorkout(userID, workoutID string, exercise *models.Exercise) error {
-	if err := exercise.Validate(); err != nil {
-		return err
-	}
+func (s *workoutService) AddExerciseToWorkout(userID, workoutID string, exerciseID string) error {
 	workout, err := s.repo.GetByID(userID, workoutID)
 	if err != nil {
 		return err
@@ -72,7 +69,7 @@ func (s *workoutService) AddExerciseToWorkout(userID, workoutID string, exercise
 		return models.ErrWorkoutNotFound
 	}
 
-	workout.Exercises = append(workout.Exercises, *exercise)
+	workout.Exercises = append(workout.Exercises, exerciseID)
 	return s.repo.Update(workout)
 }
 
@@ -87,7 +84,7 @@ func (s *workoutService) RemoveExerciseFromWorkout(userID, workoutID, exerciseID
 	}
 
 	for i, ex := range workout.Exercises {
-		if ex.ExerciseID == exerciseID {
+		if ex == exerciseID {
 			workout.Exercises = append(workout.Exercises[:i], workout.Exercises[i+1:]...)
 			return s.repo.Update(workout)
 		}

@@ -1,6 +1,6 @@
 resource "aws_lambda_function" "api_handler" {
   filename         = var.lambda_zip_file
-  function_name    = "GymTrackerAPIHandler"
+  function_name    = "GymTrackerAPIHandler-${var.environment}"
   role             = aws_iam_role.lambda_exec.arn
   handler          = "main"
   runtime          = "provided.al2"
@@ -8,10 +8,16 @@ resource "aws_lambda_function" "api_handler" {
 
   environment {
     variables = {
-      DYNAMODB_WORKOUTS_TABLE = aws_dynamodb_table.workouts.name
+      ENVIRONMENT              = var.environment
+      DYNAMODB_WORKOUTS_TABLE  = aws_dynamodb_table.workouts.name
       DYNAMODB_EXERCISES_TABLE = aws_dynamodb_table.exercises.name
-      COGNITO_USER_POOL_ID = aws_cognito_user_pool.gym_tracker_pool.id
-      COGNITO_CLIENT_ID = aws_cognito_user_pool_client.gym_tracker_client.id
+      COGNITO_USER_POOL_ID     = aws_cognito_user_pool.gym_tracker_pool.id
+      COGNITO_CLIENT_ID        = aws_cognito_user_pool_client.gym_tracker_client.id
     }
+  }
+
+  tags = {
+    Environment = var.environment
+    Project     = "gym-tracker"
   }
 }
