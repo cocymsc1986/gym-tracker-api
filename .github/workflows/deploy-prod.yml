@@ -51,7 +51,7 @@ jobs:
       - name: Initialize Terraform
         run: |
           cp environments/prod/backend.tf .
-          terraform init -input=false
+          terraform init -migrate-state
         working-directory: ./terraform
 
       - name: Terraform Plan
