@@ -6,11 +6,12 @@ import (
 )
 
 type Workout struct {
-	UserID    string     `json:"userId" dynamodbav:"UserID" validate:"required"`
-	WorkoutID string     `json:"workoutId" dynamodbav:"WorkoutID" validate:"required"`
-	Name      string     `json:"name" validate:"required, min=1,max=100"`
-	Exercises []string `json:"exercises"`
-	CreatedAt time.Time  `json:"createdAt"`
+	UserID    string     	`json:"userId" dynamodbav:"UserID" validate:"required"`
+	WorkoutID string     	`json:"workoutId" dynamodbav:"WorkoutID" validate:"required"`
+	Name      string     	`json:"name" validate:"required, min=1,max=100"`
+	Exercises []string 		`json:"exercises"`
+	Date		 	string  		`json:"date"`
+	CreatedAt time.Time  	`json:"createdAt"`
 }
 
 func(w *Workout) Validate() error {
@@ -22,6 +23,9 @@ func(w *Workout) Validate() error {
 	}
 	if w.Name == "" {
 		return errors.New("name is required")
+	}
+	if w.Date == "" {
+		return errors.New("date is required")
 	}
 	return nil
 }

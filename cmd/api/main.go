@@ -64,8 +64,29 @@ func main() {
 	
 	// Setup middleware
 	authMiddleware := middleware.NewAuthMiddleware(cognitoClient)
+	allowedOrigins := []string{"http://localhost:5173"}
+	corsMiddleware := middleware.NewCORSMiddleware(allowedOrigins)
 	
 	r := mux.NewRouter()
+	
+	// Add basic logging middleware first to verify requests are coming in
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			log.Printf("Request: %s %s", r.Method, r.URL.Path)
+			next.ServeHTTP(w, r)
+		})
+	})
+	
+	// Apply CORS middleware to all routes
+	r.Use(func(next http.Handler) http.Handler {
+		return corsMiddleware.Handler(next)
+	})
+	
+	// Handle all OPTIONS requests for CORS preflight
+	r.Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("OPTIONS preflight request: %s", r.URL.Path)
+		w.WriteHeader(http.StatusNoContent)
+	})
 	
 	// Auth routes (no authentication required)
 	r.HandleFunc("/auth/signup", authHandler.SignUp).Methods("POST")
@@ -76,7 +97,7 @@ func main() {
 	// Protected routes (authentication required)
 	r.HandleFunc("/workouts/{userId}", authMiddleware.Authenticate(workoutHandler.ListWorkouts)).Methods("GET")
 	r.HandleFunc("/workouts/{userId}/{workoutId}", authMiddleware.Authenticate(workoutHandler.GetWorkout)).Methods("GET")
-	r.HandleFunc("/workouts", authMiddleware.Authenticate(workoutHandler.CreateWorkout)).Methods("POST")
+	r.HandleFunc("/workouts/{userId}", authMiddleware.Authenticate(workoutHandler.CreateWorkout)).Methods("POST")
 	r.HandleFunc("/workouts/{userId}/{workoutId}", authMiddleware.Authenticate(workoutHandler.UpdateWorkout)).Methods("PUT")
 	r.HandleFunc("/workouts/{userId}/{workoutId}", authMiddleware.Authenticate(workoutHandler.DeleteWorkout)).Methods("DELETE")
 	r.HandleFunc("/workouts/{userId}/{workoutId}/exercises", authMiddleware.Authenticate(workoutHandler.ListExercisesInWorkout)).Methods("GET")
@@ -88,6 +109,6 @@ func main() {
 	r.HandleFunc("/exercises/{exerciseId}", authMiddleware.Authenticate(exerciseHandler.UpdateExercise)).Methods("PUT")
 	r.HandleFunc("/exercises/{exerciseId}", authMiddleware.Authenticate(exerciseHandler.DeleteExercise)).Methods("DELETE")
 	
-	log.Printf("Server starting on :8080")
+	log.Printf("Server started on :8080")
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
