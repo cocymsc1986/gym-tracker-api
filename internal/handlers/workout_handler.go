@@ -47,6 +47,11 @@ func (h *WorkoutHandler) ListWorkouts(w http.ResponseWriter, r *http.Request) {
 
 func (h *WorkoutHandler) CreateWorkout(w http.ResponseWriter, r *http.Request) {
 	var workout models.Workout
+	workout.WorkoutID = utils.GenerateUUID()
+	workout.CreatedAt = utils.GetCurrentTime()
+	workout.UserID = mux.Vars(r)["userId"]
+	workout.Exercises = []string{}
+
 	if err := utils.DecodeJSON(r.Body, &workout); err != nil {
 		utils.WriteErrorResponse(w, err)
 		return

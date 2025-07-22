@@ -5,6 +5,9 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -60,4 +63,13 @@ func WriteErrorResponse(w http.ResponseWriter, err error) {
 // DecodeJSON decodes a JSON request body into the provided struct.
 func DecodeJSON(body io.Reader, v interface{}) error {
 	return json.NewDecoder(body).Decode(v)
+}
+
+func GetCurrentTime() time.Time {
+	return time.Now().UTC()
+}
+
+func GenerateUUID() string {
+	var id = uuid.New()
+	return id.String()
 }
