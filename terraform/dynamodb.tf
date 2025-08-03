@@ -26,7 +26,13 @@ resource "aws_dynamodb_table" "exercises" {
   name         = "Exercises-${var.environment}"
   billing_mode = "PAY_PER_REQUEST"
 
-  hash_key = "ExerciseID"
+  hash_key  = "UserID"
+  range_key = "ExerciseID"
+
+  attribute {
+    name = "UserID"
+    type = "S"
+  }
 
   attribute {
     name = "ExerciseID"

@@ -45,12 +45,14 @@ func (h *ExerciseHandler) GetExercise(w http.ResponseWriter, r *http.Request) {
 
 func (h *ExerciseHandler) CreateExercise(w http.ResponseWriter, r *http.Request) {
 	var exercise models.Exercise
+	vars := mux.Vars(r)
+	userId := vars["userId"]
 	if err := utils.DecodeJSON(r.Body, &exercise); err != nil {
 		utils.WriteErrorResponse(w, err)
 		return
 	}
 
-	if err := h.service.CreateExercise(&exercise); err != nil {
+	if err := h.service.CreateExercise(userId, &exercise); err != nil {
 		utils.WriteErrorResponse(w, err)
 		return
 	}
