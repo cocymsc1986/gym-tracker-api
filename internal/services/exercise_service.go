@@ -8,7 +8,7 @@ import (
 type ExerciseService interface {
 	GetExercise(userID, exerciseID string) (*models.Exercise, error)
 	GetExercises(userID string) ([]*models.Exercise, error)
-	CreateExercise(exercise *models.Exercise) error
+	CreateExercise(userID string, exercise *models.Exercise) error
 	UpdateExercise(userID, exerciseID string, exercise *models.Exercise) error
 	DeleteExercise(userID, exerciseID string) error
 	ListExercisesByType(userID, exerciseType string) ([]*models.Exercise, error)
@@ -40,11 +40,11 @@ func (s *exerciseService) GetExercises(userID string) ([]*models.Exercise, error
 	return exercises, nil
 }
 
-func (s *exerciseService) CreateExercise(exercise *models.Exercise) error {
+func (s *exerciseService) CreateExercise(userID string, exercise *models.Exercise) error {
 	if err := exercise.Validate(); err != nil {
 		return err
 	}
-	return s.repo.Create(exercise)
+	return s.repo.Create(userID, exercise)
 }
 
 func (s *exerciseService) UpdateExercise(userID string, exerciseID string, exercise *models.Exercise) error {

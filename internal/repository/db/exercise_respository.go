@@ -74,10 +74,14 @@ func (r *DynamoExerciseRepository) ListByUserID(userID string) ([]*models.Exerci
 	return exercises, nil
 }
 
-func (r *DynamoExerciseRepository) Create(exercise *models.Exercise) error {
+func (r *DynamoExerciseRepository) Create(userID string, exercise *models.Exercise) error {
 	av, err := dynamodbattribute.MarshalMap(exercise)
 	if err != nil {
 		return fmt.Errorf("failed to marshal exercise: %w", err)
+	}
+
+	av["UserID"] = &dynamodb.AttributeValue{
+		S: aws.String(userID),
 	}
 
 	_, err = r.db.PutItem(&dynamodb.PutItemInput{

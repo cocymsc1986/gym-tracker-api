@@ -104,8 +104,8 @@ func main() {
 	r.HandleFunc("/workouts/{userId}/{workoutId}/exercises/{exerciseId}", authMiddleware.Authenticate(workoutHandler.AddExerciseToWorkout)).Methods("POST")
 	r.HandleFunc("/workouts/{userId}/{workoutId}/exercises/{exerciseId}", authMiddleware.Authenticate(workoutHandler.RemoveExerciseFromWorkout)).Methods("DELETE")
 	r.HandleFunc("/exercises", authMiddleware.Authenticate(exerciseHandler.GetExercises)).Methods("GET")
-	r.HandleFunc("/exercises/{exerciseId}", authMiddleware.Authenticate(exerciseHandler.GetExercise)).Methods("GET")
-	r.HandleFunc("/exercises", authMiddleware.Authenticate(exerciseHandler.CreateExercise)).Methods("POST")
+	r.HandleFunc("/exercises/{userId}/{exerciseId}", authMiddleware.Authenticate(exerciseHandler.GetExercise)).Methods("GET")
+	r.HandleFunc("/exercises/{userId}", authMiddleware.Authenticate(exerciseHandler.CreateExercise)).Methods("POST")
 	r.HandleFunc("/exercises/{exerciseId}", authMiddleware.Authenticate(exerciseHandler.UpdateExercise)).Methods("PUT")
 	r.HandleFunc("/exercises/{exerciseId}", authMiddleware.Authenticate(exerciseHandler.DeleteExercise)).Methods("DELETE")
 	
