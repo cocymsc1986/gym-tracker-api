@@ -1,0 +1,131 @@
+name: Deploy to Environments
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'test'
+        type: choice
+        options:
+        - test
+        - production
+
+jobs:
+  deploy-test:
+    runs-on: ubuntu-latest
+    environment: test
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'test')
+
+    env:
+      AWS_REGION: us-east-1
+      ENVIRONMENT: test
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go environment
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+
+      - name: Install Dependencies
+        run: |
+          go mod tidy
+
+      - name: Build Go Binary
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o main ./cmd/api/main.go
+
+      - name: Zip build
+        uses: montudor/action-zip@v1
+        with:
+          args: zip -qq -r ./lambda.zip . -i main
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Initialize Terraform
+        run: |
+          cp environments/test/backend.tf .
+          terraform init -input=false
+        working-directory: ./terraform
+
+      - name: Terraform Plan
+        run: terraform plan -var-file="environments/test/terraform.tfvars" -var "lambda_zip_file=${{ github.workspace }}/lambda.zip"
+        working-directory: ./terraform
+
+      - name: Apply Terraform
+        run: terraform apply -auto-approve -var-file="environments/test/terraform.tfvars" -var "lambda_zip_file=${{ github.workspace }}/lambda.zip"
+        working-directory: ./terraform
+
+  deploy-prod:
+    runs-on: ubuntu-latest
+    environment: production
+    needs: deploy-test
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
+
+    env:
+      AWS_REGION: us-east-1
+      ENVIRONMENT: prod
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go environment
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+
+      - name: Install Dependencies
+        run: |
+          go mod tidy
+
+      - name: Build Go Binary
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o main ./cmd/api/main.go
+
+      - name: Zip build
+        uses: montudor/action-zip@v1
+        with:
+          args: zip -qq -r ./lambda.zip . -i main
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Initialize Terraform
+        run: |
+          cp environments/prod/backend.tf .
+          terraform init -input=false
+        working-directory: ./terraform
+
+      - name: Terraform Plan
+        run: terraform plan -var-file="environments/prod/terraform.tfvars" -var "lambda_zip_file=${{ github.workspace }}/lambda.zip"
+        working-directory: ./terraform
+
+      - name: Apply Terraform
+        run: terraform apply -auto-approve -var-file="environments/prod/terraform.tfvars" -var "lambda_zip_file=${{ github.workspace }}/lambda.zip"
+        working-directory: ./terraform
