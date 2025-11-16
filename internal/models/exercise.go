@@ -12,10 +12,10 @@ type Exercise struct {
 	ExerciseID 		string  `json:"exerciseId" dynamodbav:"ExerciseID" validate:"required"`
 	Name       		string  `json:"name"`
 	ExerciseType  string  `json:"exerciseType" dynamodbav:"ExerciseType" validate:"required"`
-	Time       		string  `json:"time,omitempty"`
+	Time       		int		  `json:"time,omitempty"`
 	Distance	 		float64 `json:"distance,omitempty"`
 	DistanceUnit 	string  `json:"distanceUnit,omitempty"`
-	Level      		string  `json:"level,omitempty"`
+	Level      		int		  `json:"level,omitempty"`
 	Sets       		[]WeightItem  `json:"sets,omitempty"`
 }
 

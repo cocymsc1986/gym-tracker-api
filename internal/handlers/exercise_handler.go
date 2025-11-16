@@ -43,6 +43,19 @@ func (h *ExerciseHandler) GetExercise(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSONResponse(w, exercise, http.StatusOK)
 }
 
+func (h *ExerciseHandler) ListExercisesByName(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userID := vars["userId"]
+	exerciseName := vars["exerciseName"]
+
+	exercise, err := h.service.ListExercisesByName(userID, exerciseName)
+	if err != nil {
+		utils.WriteErrorResponse(w, err)
+		return
+	}
+	utils.WriteJSONResponse(w, exercise, http.StatusOK)
+}
+
 func (h *ExerciseHandler) CreateExercise(w http.ResponseWriter, r *http.Request) {
 	var exercise models.Exercise
 	vars := mux.Vars(r)
