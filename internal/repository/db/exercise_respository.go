@@ -170,3 +170,33 @@ func (r *DynamoExerciseRepository) ListByType(userID, exerciseType string) ([]*m
 
 	return exercises, nil
 }
+
+func (r *DynamoExerciseRepository) ListByName(userID, exerciseName string) ([]*models.Exercise, error) {
+	queryInput := &dynamodb.QueryInput{
+		TableName:              aws.String(r.tableName),
+		IndexName:              aws.String("ExerciseTypeIndex"),
+		KeyConditionExpression: aws.String("name = :name"),
+		FilterExpression:       aws.String("UserID = :userID"),
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":name": {
+				S: aws.String(exerciseName),
+			},
+			":userID": {
+				S: aws.String(userID),
+			},
+		},
+	}
+
+	result, err := r.db.Query(queryInput)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list exercises by exerciseType: %w", err)
+	}
+
+	var exercises []*models.Exercise
+	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, &exercises)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal exercises: %w", err)
+	}
+
+	return exercises, nil
+}
