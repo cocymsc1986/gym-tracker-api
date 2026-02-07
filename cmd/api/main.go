@@ -64,7 +64,7 @@ func main() {
 	
 	// Setup middleware
 	authMiddleware := middleware.NewAuthMiddleware(cognitoClient)
-	allowedOrigins := []string{"http://localhost:5173"}
+	allowedOrigins := []string{"http://localhost:5173", "capacitor://localhost"}
 	corsMiddleware := middleware.NewCORSMiddleware(allowedOrigins)
 	
 	r := mux.NewRouter()
