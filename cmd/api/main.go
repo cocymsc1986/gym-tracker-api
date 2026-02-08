@@ -67,7 +67,7 @@ func main() {
 	authMiddleware := middleware.NewAuthMiddleware(cognitoClient)
 	originsEnv := os.Getenv("CORS_ALLOWED_ORIGINS")
 	if originsEnv == "" {
-		originsEnv = "http://localhost:5173"
+		originsEnv = "http://localhost:5173,capacitor://localhost"
 	}
 	allowedOrigins := strings.Split(originsEnv, ",")
 	corsMiddleware := middleware.NewCORSMiddleware(allowedOrigins)

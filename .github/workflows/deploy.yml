@@ -6,13 +6,13 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy to'
+        description: "Environment to deploy to"
         required: true
-        default: 'test'
+        default: "test"
         type: choice
         options:
-        - test
-        - production
+          - test
+          - production
 
 jobs:
   deploy-test:
@@ -75,7 +75,6 @@ jobs:
   deploy-prod:
     runs-on: ubuntu-latest
     environment: production
-    needs: deploy-test
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
 
     env:
