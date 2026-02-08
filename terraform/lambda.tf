@@ -13,6 +13,7 @@ resource "aws_lambda_function" "api_handler" {
       DYNAMODB_EXERCISES_TABLE = aws_dynamodb_table.exercises.name
       COGNITO_USER_POOL_ID     = aws_cognito_user_pool.gym_tracker_pool.id
       COGNITO_CLIENT_ID        = aws_cognito_user_pool_client.gym_tracker_client.id
+      CORS_ALLOWED_ORIGINS     = var.cors_allowed_origins
     }
   }
 

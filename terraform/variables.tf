@@ -24,3 +24,9 @@ variable "cognito_client_name" {
   type        = string
   default     = "gym-tracker-client"
 }
+
+variable "cors_allowed_origins" {
+  description = "Allowed CORS origins for API Gateway and Lambda"
+  type        = string
+  default     = "http://localhost:5173"
+}
