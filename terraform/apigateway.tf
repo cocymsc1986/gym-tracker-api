@@ -8,39 +8,176 @@ resource "aws_api_gateway_rest_api" "gym_tracker_api" {
   }
 }
 
-resource "aws_api_gateway_resource" "workouts_resource" {
+# ──────────────────────────────────────────────
+# {proxy+} catch-all resource
+# ──────────────────────────────────────────────
+
+resource "aws_api_gateway_resource" "proxy_resource" {
   rest_api_id = aws_api_gateway_rest_api.gym_tracker_api.id
   parent_id   = aws_api_gateway_rest_api.gym_tracker_api.root_resource_id
-  path_part   = "workouts"
+  path_part   = "{proxy+}"
 }
 
-resource "aws_api_gateway_method" "workouts_method" {
+resource "aws_api_gateway_method" "proxy_any" {
   rest_api_id   = aws_api_gateway_rest_api.gym_tracker_api.id
-  resource_id   = aws_api_gateway_resource.workouts_resource.id
+  resource_id   = aws_api_gateway_resource.proxy_resource.id
   http_method   = "ANY"
   authorization = "NONE"
 }
 
-resource "aws_api_gateway_integration" "lambda_integration" {
+resource "aws_api_gateway_integration" "proxy_lambda_integration" {
   rest_api_id             = aws_api_gateway_rest_api.gym_tracker_api.id
-  resource_id             = aws_api_gateway_resource.workouts_resource.id
-  http_method             = aws_api_gateway_method.workouts_method.http_method
+  resource_id             = aws_api_gateway_resource.proxy_resource.id
+  http_method             = aws_api_gateway_method.proxy_any.http_method
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = aws_lambda_function.api_handler.invoke_arn
 
   depends_on = [
-    aws_api_gateway_method.workouts_method
+    aws_api_gateway_method.proxy_any
   ]
 }
+
+# OPTIONS mock integration on {proxy+} for CORS preflight
+resource "aws_api_gateway_method" "proxy_options" {
+  rest_api_id   = aws_api_gateway_rest_api.gym_tracker_api.id
+  resource_id   = aws_api_gateway_resource.proxy_resource.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "proxy_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.gym_tracker_api.id
+  resource_id = aws_api_gateway_resource.proxy_resource.id
+  http_method = aws_api_gateway_method.proxy_options.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+
+  depends_on = [
+    aws_api_gateway_method.proxy_options
+  ]
+}
+
+resource "aws_api_gateway_method_response" "proxy_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.gym_tracker_api.id
+  resource_id = aws_api_gateway_resource.proxy_resource.id
+  http_method = aws_api_gateway_method.proxy_options.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Origin"  = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Headers" = true
+  }
+
+  response_models = {
+    "application/json" = "Empty"
+  }
+
+  depends_on = [
+    aws_api_gateway_method.proxy_options
+  ]
+}
+
+resource "aws_api_gateway_integration_response" "proxy_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.gym_tracker_api.id
+  resource_id = aws_api_gateway_resource.proxy_resource.id
+  http_method = aws_api_gateway_method.proxy_options.http_method
+  status_code = aws_api_gateway_method_response.proxy_options_200.status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Origin"  = "'${var.cors_allowed_origins}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,PUT,DELETE,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,Authorization'"
+  }
+
+  depends_on = [
+    aws_api_gateway_integration.proxy_options_integration
+  ]
+}
+
+# ──────────────────────────────────────────────
+# OPTIONS mock integration on root resource
+# ──────────────────────────────────────────────
+
+resource "aws_api_gateway_method" "root_options" {
+  rest_api_id   = aws_api_gateway_rest_api.gym_tracker_api.id
+  resource_id   = aws_api_gateway_rest_api.gym_tracker_api.root_resource_id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "root_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.gym_tracker_api.id
+  resource_id = aws_api_gateway_rest_api.gym_tracker_api.root_resource_id
+  http_method = aws_api_gateway_method.root_options.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+
+  depends_on = [
+    aws_api_gateway_method.root_options
+  ]
+}
+
+resource "aws_api_gateway_method_response" "root_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.gym_tracker_api.id
+  resource_id = aws_api_gateway_rest_api.gym_tracker_api.root_resource_id
+  http_method = aws_api_gateway_method.root_options.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Origin"  = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Headers" = true
+  }
+
+  response_models = {
+    "application/json" = "Empty"
+  }
+
+  depends_on = [
+    aws_api_gateway_method.root_options
+  ]
+}
+
+resource "aws_api_gateway_integration_response" "root_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.gym_tracker_api.id
+  resource_id = aws_api_gateway_rest_api.gym_tracker_api.root_resource_id
+  http_method = aws_api_gateway_method.root_options.http_method
+  status_code = aws_api_gateway_method_response.root_options_200.status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Origin"  = "'${var.cors_allowed_origins}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,PUT,DELETE,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,Authorization'"
+  }
+
+  depends_on = [
+    aws_api_gateway_integration.root_options_integration
+  ]
+}
+
+# ──────────────────────────────────────────────
+# Deployment
+# ──────────────────────────────────────────────
 
 resource "aws_api_gateway_deployment" "api_deployment" {
   rest_api_id = aws_api_gateway_rest_api.gym_tracker_api.id
   stage_name  = var.environment
 
   depends_on = [
-    aws_api_gateway_method.workouts_method,
-    aws_api_gateway_integration.lambda_integration
+    aws_api_gateway_method.proxy_any,
+    aws_api_gateway_integration.proxy_lambda_integration,
+    aws_api_gateway_method.proxy_options,
+    aws_api_gateway_integration.proxy_options_integration,
+    aws_api_gateway_method.root_options,
+    aws_api_gateway_integration.root_options_integration
   ]
 }
 

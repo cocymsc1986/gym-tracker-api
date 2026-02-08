@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"gym-tracker-api/internal/handlers"
 	"gym-tracker-api/internal/middleware"
@@ -64,7 +65,11 @@ func main() {
 	
 	// Setup middleware
 	authMiddleware := middleware.NewAuthMiddleware(cognitoClient)
-	allowedOrigins := []string{"http://localhost:5173"}
+	originsEnv := os.Getenv("CORS_ALLOWED_ORIGINS")
+	if originsEnv == "" {
+		originsEnv = "http://localhost:5173"
+	}
+	allowedOrigins := strings.Split(originsEnv, ",")
 	corsMiddleware := middleware.NewCORSMiddleware(allowedOrigins)
 	
 	r := mux.NewRouter()
