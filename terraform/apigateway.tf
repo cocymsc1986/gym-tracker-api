@@ -185,10 +185,6 @@ resource "aws_api_gateway_deployment" "api_deployment" {
     ]))
   }
 
-  lifecycle {
-    create_before_destroy = true
-  }
-
   depends_on = [
     aws_api_gateway_method.proxy_any,
     aws_api_gateway_integration.proxy_lambda_integration,
