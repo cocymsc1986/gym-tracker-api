@@ -171,6 +171,24 @@ resource "aws_api_gateway_deployment" "api_deployment" {
   rest_api_id = aws_api_gateway_rest_api.gym_tracker_api.id
   stage_name  = var.environment
 
+  triggers = {
+    redeployment = sha1(jsonencode([
+      aws_api_gateway_resource.proxy_resource.id,
+      aws_api_gateway_method.proxy_any.id,
+      aws_api_gateway_integration.proxy_lambda_integration.id,
+      aws_api_gateway_method.proxy_options.id,
+      aws_api_gateway_integration.proxy_options_integration.id,
+      aws_api_gateway_integration_response.proxy_options_integration_response.id,
+      aws_api_gateway_method.root_options.id,
+      aws_api_gateway_integration.root_options_integration.id,
+      aws_api_gateway_integration_response.root_options_integration_response.id,
+    ]))
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
   depends_on = [
     aws_api_gateway_method.proxy_any,
     aws_api_gateway_integration.proxy_lambda_integration,
