@@ -65,11 +65,11 @@ jobs:
         working-directory: ./terraform
 
       - name: Terraform Plan
-        run: terraform plan -var-file="environments/test/terraform.tfvars" -var "lambda_zip_file=${{ github.workspace }}/lambda.zip"
+        run: terraform plan -var-file="environments/test/terraform.tfvars" -var "lambda_zip_file=${{ github.workspace }}/lambda.zip" -var "cors_allowed_origins=${{ secrets.CORS_ALLOWED_ORIGINS }}"
         working-directory: ./terraform
 
       - name: Apply Terraform
-        run: terraform apply -auto-approve -var-file="environments/test/terraform.tfvars" -var "lambda_zip_file=${{ github.workspace }}/lambda.zip"
+        run: terraform apply -auto-approve -var-file="environments/test/terraform.tfvars" -var "lambda_zip_file=${{ github.workspace }}/lambda.zip" -var "cors_allowed_origins=${{ secrets.CORS_ALLOWED_ORIGINS }}"
         working-directory: ./terraform
 
   deploy-prod:
@@ -122,9 +122,9 @@ jobs:
         working-directory: ./terraform
 
       - name: Terraform Plan
-        run: terraform plan -var-file="environments/prod/terraform.tfvars" -var "lambda_zip_file=${{ github.workspace }}/lambda.zip"
+        run: terraform plan -var-file="environments/prod/terraform.tfvars" -var "lambda_zip_file=${{ github.workspace }}/lambda.zip" -var "cors_allowed_origins=${{ secrets.CORS_ALLOWED_ORIGINS }}"
         working-directory: ./terraform
 
       - name: Apply Terraform
-        run: terraform apply -auto-approve -var-file="environments/prod/terraform.tfvars" -var "lambda_zip_file=${{ github.workspace }}/lambda.zip"
+        run: terraform apply -auto-approve -var-file="environments/prod/terraform.tfvars" -var "lambda_zip_file=${{ github.workspace }}/lambda.zip" -var "cors_allowed_origins=${{ secrets.CORS_ALLOWED_ORIGINS }}"
         working-directory: ./terraform

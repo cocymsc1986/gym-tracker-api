@@ -12,6 +12,7 @@ import (
 	"gym-tracker-api/internal/repository/db"
 	"gym-tracker-api/internal/services"
 
+	"github.com/akrylysov/algnhsa"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -27,10 +28,9 @@ var (
 )
 
 func init() {
-	// Load .env file
-	err := godotenv.Load("../../.env")
-	if err != nil {
-		log.Fatalf("Error loading .env file")
+	// Load .env file (non-fatal — Lambda uses env vars from Terraform)
+	if err := godotenv.Load("../../.env"); err != nil {
+		log.Println("No .env file found, using environment variables")
 	}
 	fmt.Println("Loaded AWS Region:", os.Getenv("AWS_REGION"))
 
@@ -87,12 +87,6 @@ func main() {
 		return corsMiddleware.Handler(next)
 	})
 	
-	// Handle all OPTIONS requests for CORS preflight
-	r.Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("OPTIONS preflight request: %s", r.URL.Path)
-		w.WriteHeader(http.StatusNoContent)
-	})
-	
 	// Auth routes (no authentication required)
 	r.HandleFunc("/auth/signup", authHandler.SignUp).Methods("POST")
 	r.HandleFunc("/auth/confirm", authHandler.ConfirmSignUp).Methods("POST")
@@ -115,6 +109,5 @@ func main() {
 	r.HandleFunc("/exercises/{exerciseId}", authMiddleware.Authenticate(exerciseHandler.UpdateExercise)).Methods("PUT")
 	r.HandleFunc("/exercises/{exerciseId}", authMiddleware.Authenticate(exerciseHandler.DeleteExercise)).Methods("DELETE")
 	
-	log.Printf("Server started on :8080")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	algnhsa.ListenAndServe(r, nil)
 }
