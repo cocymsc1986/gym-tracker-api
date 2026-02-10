@@ -82,11 +82,6 @@ func main() {
 		})
 	})
 	
-	// Apply CORS middleware to all routes
-	r.Use(func(next http.Handler) http.Handler {
-		return corsMiddleware.Handler(next)
-	})
-	
 	// Auth routes (no authentication required)
 	r.HandleFunc("/auth/signup", authHandler.SignUp).Methods("POST")
 	r.HandleFunc("/auth/confirm", authHandler.ConfirmSignUp).Methods("POST")
@@ -109,5 +104,8 @@ func main() {
 	r.HandleFunc("/exercises/{exerciseId}", authMiddleware.Authenticate(exerciseHandler.UpdateExercise)).Methods("PUT")
 	r.HandleFunc("/exercises/{exerciseId}", authMiddleware.Authenticate(exerciseHandler.DeleteExercise)).Methods("DELETE")
 	
-	algnhsa.ListenAndServe(r, nil)
+	// Wrap router with CORS middleware so it runs before routing —
+	// gorilla/mux r.Use() only runs when a route matches, which
+	// excludes OPTIONS preflight requests that have no registered route.
+	algnhsa.ListenAndServe(corsMiddleware.Handler(r), nil)
 }
