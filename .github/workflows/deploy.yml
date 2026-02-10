@@ -39,7 +39,7 @@ jobs:
 
       - name: Build Go Binary
         run: |
-          GOOS=linux GOARCH=amd64 go build -o bootstrap ./cmd/api/main.go
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bootstrap ./cmd/api/main.go
 
       - name: Zip build
         uses: montudor/action-zip@v1
@@ -96,7 +96,7 @@ jobs:
 
       - name: Build Go Binary
         run: |
-          GOOS=linux GOARCH=amd64 go build -o bootstrap ./cmd/api/main.go
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bootstrap ./cmd/api/main.go
 
       - name: Zip build
         uses: montudor/action-zip@v1
