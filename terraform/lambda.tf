@@ -2,7 +2,7 @@ resource "aws_lambda_function" "api_handler" {
   filename         = var.lambda_zip_file
   function_name    = "GymTrackerAPIHandler-${var.environment}"
   role             = aws_iam_role.lambda_exec.arn
-  handler          = "main"
+  handler          = "bootstrap"
   runtime          = "provided.al2"
   source_code_hash = filebase64sha256(var.lambda_zip_file)
 
