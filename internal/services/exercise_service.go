@@ -57,7 +57,7 @@ func (s *exerciseService) UpdateExercise(userID string, exerciseID string, exerc
 }
 
 func (s *exerciseService) DeleteExercise(userID, exerciseID string) error {
-	return s.repo.Delete(exerciseID, userID)
+	return s.repo.Delete(userID, exerciseID)
 }
 
 func (s *exerciseService) ListExercisesByType(userID, exerciseType string) ([]*models.Exercise, error) {

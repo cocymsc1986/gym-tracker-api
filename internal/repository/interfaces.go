@@ -17,5 +17,5 @@ type ExerciseRepository interface {
 	ListByName(userID, exerciseName string) ([]*models.Exercise, error)
 	Create(userID string, exercise *models.Exercise) error
 	Update(userID string, exercise *models.Exercise) error
-	Delete(exerciseID string, userID string) error
+	Delete(userID string, exerciseID string) error
 }
