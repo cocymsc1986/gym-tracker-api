@@ -38,7 +38,7 @@ func (m *mockExerciseRepo) Update(userID string, exercise *models.Exercise) erro
 	return m.err
 }
 
-func (m *mockExerciseRepo) Delete(exerciseID, userID string) error {
+func (m *mockExerciseRepo) Delete(userID, exerciseID string) error {
 	return m.err
 }
 
