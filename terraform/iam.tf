@@ -32,11 +32,19 @@ resource "aws_iam_role_policy" "lambda_dynamo_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Action   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:Scan"]
-        Effect   = "Allow"
+        Action = [
+          "dynamodb:PutItem",
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:Query",
+          "dynamodb:Scan"
+        ]
+        Effect = "Allow"
         Resource = [
           aws_dynamodb_table.workouts.arn,
-          aws_dynamodb_table.exercises.arn
+          aws_dynamodb_table.exercises.arn,
+          "${aws_dynamodb_table.exercises.arn}/index/*"
         ]
       }
     ]
