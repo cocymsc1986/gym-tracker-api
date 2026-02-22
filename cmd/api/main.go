@@ -107,5 +107,16 @@ func main() {
 	// Wrap router with CORS middleware so it runs before routing —
 	// gorilla/mux r.Use() only runs when a route matches, which
 	// excludes OPTIONS preflight requests that have no registered route.
-	algnhsa.ListenAndServe(corsMiddleware.Handler(r), nil)
+	
+	// Run as Lambda function if AWS_LAMBDA_RUNTIME_API is set, otherwise run as standard HTTP server
+	if os.Getenv("AWS_LAMBDA_RUNTIME_API") != "" {
+		algnhsa.ListenAndServe(corsMiddleware.Handler(r), nil)
+	} else {
+		port := os.Getenv("PORT")
+		if port == "" {
+			port = "8080"
+		}
+		log.Printf("Server running on port %s", port)
+		log.Fatal(http.ListenAndServe(":"+port, corsMiddleware.Handler(r)))
+	}
 }
