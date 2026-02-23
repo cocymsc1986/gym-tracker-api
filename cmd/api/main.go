@@ -101,8 +101,8 @@ func main() {
 	r.HandleFunc("/exercises/{userId}/name/{exerciseName}", authMiddleware.Authenticate(exerciseHandler.ListExercisesByName)).Methods("GET")
 	r.HandleFunc("/exercises/{userId}", authMiddleware.Authenticate(exerciseHandler.GetExercises)).Methods("GET")
 	r.HandleFunc("/exercises/{userId}", authMiddleware.Authenticate(exerciseHandler.CreateExercise)).Methods("POST")
-	r.HandleFunc("/exercises/{exerciseId}", authMiddleware.Authenticate(exerciseHandler.UpdateExercise)).Methods("PUT")
-	r.HandleFunc("/exercises/{exerciseId}", authMiddleware.Authenticate(exerciseHandler.DeleteExercise)).Methods("DELETE")
+	r.HandleFunc("/exercises/{userId}/{exerciseId}", authMiddleware.Authenticate(exerciseHandler.UpdateExercise)).Methods("PUT")
+	r.HandleFunc("/exercises/{userId}/{exerciseId}", authMiddleware.Authenticate(exerciseHandler.DeleteExercise)).Methods("DELETE")
 	
 	// Wrap router with CORS middleware so it runs before routing —
 	// gorilla/mux r.Use() only runs when a route matches, which
