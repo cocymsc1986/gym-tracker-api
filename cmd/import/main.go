@@ -32,9 +32,9 @@ const (
 	colWeightUnit   = 7
 	colDistance     = 8
 	colDistanceUnit = 9
-	// colRoundTimes = 10  // not used — no matching model field
-	colEffort = 11
-	// colNotes  = 12  // not used — no matching model field
+	colRoundTimes   = 10
+	// colEffort = 11  // not mapped — Level left as zero value
+	// colNotes  = 12  // no matching model field
 )
 
 type workoutGroup struct {
@@ -97,10 +97,10 @@ func main() {
 			exercise := buildExercise(row)
 
 			if *dryRun {
-				fmt.Printf("  [exercise] %s (%s) distance=%.0f%s sets=%d level=%d\n",
+				fmt.Printf("  [exercise] %s (%s) distance=%.0f%s sets=%d time=%ds\n",
 					exercise.Name, exercise.ExerciseType,
 					exercise.Distance, exercise.DistanceUnit,
-					len(exercise.Sets), exercise.Level)
+					len(exercise.Sets), exercise.Time)
 			} else {
 				if err := exerciseRepo.Create(*userID, exercise); err != nil {
 					log.Printf("WARNING: failed to create exercise %q in workout %s/%s: %v",
@@ -196,7 +196,7 @@ func buildExercise(row []string) *models.Exercise {
 	weightUnit := field(row, colWeightUnit)
 	distance := parseFloat(field(row, colDistance))
 	distanceUnit := field(row, colDistanceUnit)
-	effort := field(row, colEffort)
+	roundTimes := field(row, colRoundTimes)
 
 	exercise := &models.Exercise{
 		ExerciseID:   uuid.New().String(),
@@ -204,7 +204,7 @@ func buildExercise(row []string) *models.Exercise {
 		ExerciseType: exerciseType,
 		Distance:     distance,
 		DistanceUnit: distanceUnit,
-		Level:        effortToLevel(effort),
+		Time:         parseRoundTimes(roundTimes, exerciseType),
 	}
 
 	// Build Sets for any exercise where sets > 0 (weights, other bodyweight, cardio intervals)
@@ -223,18 +223,41 @@ func buildExercise(row []string) *models.Exercise {
 	return exercise
 }
 
-// effortToLevel maps effort strings to integer levels (0 = unspecified).
-func effortToLevel(effort string) int {
-	switch strings.ToLower(strings.TrimSpace(effort)) {
-	case "easy":
-		return 1
-	case "moderate":
-		return 2
-	case "hard":
-		return 3
-	default:
+// parseRoundTimes parses the round_times CSV field into seconds for cardio exercises.
+// Multiple round values separated by " / " are averaged.
+// Formats: "57s", "6:05m", "6:15", "3:39s", "39" — colon means M:SS, else bare seconds.
+func parseRoundTimes(s, exerciseType string) int {
+	if exerciseType != "cardio" || s == "" {
 		return 0
 	}
+	parts := strings.Split(s, " / ")
+	total := 0
+	count := 0
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		var secs int
+		if strings.Contains(p, ":") {
+			// M:SS format — strip any trailing letter then split on ":"
+			p = strings.TrimRight(p, "ms")
+			halves := strings.SplitN(p, ":", 2)
+			mins := parseInt(halves[0])
+			seconds := parseInt(halves[1])
+			secs = mins*60 + seconds
+		} else {
+			// bare seconds — strip trailing letter
+			p = strings.TrimRight(p, "ms")
+			secs = parseInt(p)
+		}
+		total += secs
+		count++
+	}
+	if count == 0 {
+		return 0
+	}
+	return total / count
 }
 
 func field(row []string, idx int) string {
