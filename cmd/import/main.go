@@ -271,8 +271,14 @@ func parseInt(s string) int {
 	if s == "" {
 		return 0
 	}
-	v, _ := strconv.Atoi(s)
-	return v
+	if v, err := strconv.Atoi(s); err == nil {
+		return v
+	}
+	// Handle float-formatted integers exported from spreadsheets (e.g. "3.0")
+	if f, err := strconv.ParseFloat(s, 64); err == nil {
+		return int(f)
+	}
+	return 0
 }
 
 func parseFloat(s string) float64 {
