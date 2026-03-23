@@ -100,15 +100,21 @@ func main() {
 		fmt.Println("DRY RUN — no data will be written to DynamoDB")
 	}
 
+	// --- Build nearest-time index for exercises missing round_times ---
+	allRows := flattenRows(groups)
+	nearestTimes := buildNearestTimeIndex(allRows)
+
 	// --- Import ---
 	totalWorkouts := 0
 	totalExercises := 0
+	rowIdx := 0
 
 	for _, group := range groups {
 		exerciseIDs := make([]string, 0)
 
 		for _, row := range group.rows {
-			exercises := buildExercises(row)
+			exercises := buildExercises(row, nearestTimes[rowIdx])
+			rowIdx++
 
 			for _, exercise := range exercises {
 				if *dryRun {
@@ -159,9 +165,10 @@ func main() {
 }
 
 // buildExercises converts one CSV row into one or more Exercise records.
-// Multi-set cardio/body_weight rows are split into one Exercise per set.
+// Multi-set cardio rows are split into one Exercise per set.
 // Warm Up (Cardio) rows are dropped (returns nil).
-func buildExercises(row []string) []*models.Exercise {
+// nearestTime is used to fill in Time for exercises that have no round_times (e.g. Ski Erg cals).
+func buildExercises(row []string, nearestTime int) []*models.Exercise {
 	name := field(row, colExercise)
 	csvType := field(row, colType)
 
@@ -182,7 +189,7 @@ func buildExercises(row []string) []*models.Exercise {
 
 	switch exerciseType {
 	case models.ExerciseTypeCardio:
-		return buildCardioExercises(name, sets, reps, weight, weightUnit, distance, distanceUnit, roundTimes)
+		return buildCardioExercises(name, sets, reps, weight, weightUnit, distance, distanceUnit, roundTimes, nearestTime)
 	case models.ExerciseTypeBodyWeight:
 		return buildBodyWeightExercises(name, sets, reps, distance, distanceUnit, roundTimes)
 	default: // weights, other
@@ -215,9 +222,9 @@ func resolveType(name, csvType string, weight float64) string {
 
 // buildCardioExercises handles cardio rows.
 // If round_times is present: split into one Exercise per time value.
-// Ski Erg with reps (calories): reps → distance, unit = "cal".
+// Ski Erg with reps (calories): reps → distance, unit = "cal"; nearestTime fills in Time when no round_times.
 // Weighted Walk: combine sets into one row, multiply distance by sets.
-func buildCardioExercises(name string, sets, reps int, weight float64, weightUnit string, distance float64, distanceUnit, roundTimes string) []*models.Exercise {
+func buildCardioExercises(name string, sets, reps int, weight float64, weightUnit string, distance float64, distanceUnit, roundTimes string, nearestTime int) []*models.Exercise {
 	lower := strings.ToLower(name)
 
 	// Weighted Walk: combine sets into a single row with total distance
@@ -240,6 +247,7 @@ func buildCardioExercises(name string, sets, reps int, weight float64, weightUni
 		return splitPerSet(name, models.ExerciseTypeCardio, sets, func(i int, e *models.Exercise) {
 			e.Distance = float64(reps)
 			e.DistanceUnit = "cal"
+			e.Time = nearestTime // filled from nearest Ski Erg row that has round_times
 		})
 	}
 
@@ -294,25 +302,29 @@ func buildBodyWeightExercises(name string, sets, reps int, distance float64, dis
 
 	if isPlank {
 		if roundTimes != "" {
-			// Split on individual times → Duration per set
+			// One exercise; each set gets its own Duration from round_times
 			times := parseRoundTimeList(roundTimes)
-			result := make([]*models.Exercise, 0, len(times))
-			for _, t := range times {
-				e := newExercise(name, models.ExerciseTypeBodyWeight)
-				e.Sets = []models.WeightItem{{Duration: t}}
-				result = append(result, e)
+			items := make([]models.WeightItem, len(times))
+			for i, t := range times {
+				items[i] = models.WeightItem{Duration: t}
 			}
-			return result
+			e := newExercise(name, models.ExerciseTypeBodyWeight)
+			e.Sets = items
+			return []*models.Exercise{e}
 		}
-		// reps = duration in seconds
+		// reps = duration in seconds; N identical sets
 		if reps > 0 {
 			effectiveSets := sets
 			if effectiveSets == 0 {
 				effectiveSets = 1
 			}
-			return splitPerSet(name, models.ExerciseTypeBodyWeight, effectiveSets, func(i int, e *models.Exercise) {
-				e.Sets = []models.WeightItem{{Duration: reps}}
-			})
+			items := make([]models.WeightItem, effectiveSets)
+			for i := range items {
+				items[i] = models.WeightItem{Duration: reps}
+			}
+			e := newExercise(name, models.ExerciseTypeBodyWeight)
+			e.Sets = items
+			return []*models.Exercise{e}
 		}
 	}
 
@@ -393,6 +405,67 @@ func newExercise(name, exerciseType string) *models.Exercise {
 		Name:         name,
 		ExerciseType: exerciseType,
 	}
+}
+
+// flattenRows returns all CSV rows across all groups as a single ordered slice.
+func flattenRows(groups []workoutGroup) [][]string {
+	var all [][]string
+	for _, g := range groups {
+		all = append(all, g.rows...)
+	}
+	return all
+}
+
+// buildNearestTimeIndex scans all rows and returns a map of rowIndex → nearest averaged time (seconds)
+// for rows that have no round_times value. Only rows for the same exercise name with a non-empty
+// round_times are considered as candidates. Rows that already have round_times are excluded.
+func buildNearestTimeIndex(rows [][]string) map[int]int {
+	type timeAt struct{ idx, secs int }
+	byName := map[string][]timeAt{}
+
+	for i, row := range rows {
+		rt := field(row, colRoundTimes)
+		if rt == "" {
+			continue
+		}
+		times := parseRoundTimeList(rt)
+		if len(times) == 0 {
+			continue
+		}
+		total := 0
+		for _, t := range times {
+			total += t
+		}
+		name := strings.ToLower(field(row, colExercise))
+		byName[name] = append(byName[name], timeAt{i, total / len(times)})
+	}
+
+	result := map[int]int{}
+	for i, row := range rows {
+		if field(row, colRoundTimes) != "" {
+			continue // row already has its own times
+		}
+		name := strings.ToLower(field(row, colExercise))
+		entries := byName[name]
+		if len(entries) == 0 {
+			continue
+		}
+		nearest := entries[0]
+		for _, e := range entries[1:] {
+			if abs(i-e.idx) < abs(i-nearest.idx) {
+				nearest = e
+			}
+		}
+		result[i] = nearest.secs
+	}
+	return result
+}
+
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
 
 // parseCSV reads the file and returns ordered workout groups preserving CSV row order.
