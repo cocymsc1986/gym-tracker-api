@@ -46,7 +46,7 @@ func sampleExercise() *models.Exercise {
 	return &models.Exercise{
 		ExerciseID:   "ex-1",
 		Name:         "Bench Press",
-		ExerciseType: "strength",
+		ExerciseType: "weights",
 	}
 }
 
