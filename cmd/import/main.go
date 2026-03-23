@@ -97,10 +97,16 @@ func main() {
 			exercise := buildExercise(row)
 
 			if *dryRun {
-				fmt.Printf("  [exercise] %s (%s) distance=%.0f%s sets=%d time=%ds\n",
+				setsDesc := fmt.Sprintf("sets=%d", len(exercise.Sets))
+				if len(exercise.Sets) > 0 {
+					s := exercise.Sets[0]
+					setsDesc += fmt.Sprintf("[reps=%d weight=%.1f%s]", s.Reps, s.Weight, s.Unit)
+				}
+				fmt.Printf("  [exercise] %-30s %-8s %s dist=%.0f%s time=%ds\n",
 					exercise.Name, exercise.ExerciseType,
+					setsDesc,
 					exercise.Distance, exercise.DistanceUnit,
-					len(exercise.Sets), exercise.Time)
+					exercise.Time)
 			} else {
 				if err := exerciseRepo.Create(*userID, exercise); err != nil {
 					log.Printf("WARNING: failed to create exercise %q in workout %s/%s: %v",
@@ -207,7 +213,10 @@ func buildExercise(row []string) *models.Exercise {
 		Time:         parseRoundTimes(roundTimes, exerciseType),
 	}
 
-	// Build Sets for any exercise where sets > 0 (weights, other bodyweight, cardio intervals)
+	// Build Sets for any exercise where sets > 0 (weights, other bodyweight, cardio intervals).
+	// If sets is blank/0 but weight or reps is present (e.g. a distance-based lunges entry
+	// with weight but no explicit set count), preserve that data in a single item so it
+	// is not silently dropped.
 	if sets > 0 {
 		items := make([]models.WeightItem, sets)
 		for i := range items {
@@ -218,16 +227,22 @@ func buildExercise(row []string) *models.Exercise {
 			}
 		}
 		exercise.Sets = items
+	} else if weight > 0 || reps > 0 {
+		exercise.Sets = []models.WeightItem{{
+			Weight: weight,
+			Unit:   weightUnit,
+			Reps:   reps,
+		}}
 	}
 
 	return exercise
 }
 
-// parseRoundTimes parses the round_times CSV field into seconds for cardio exercises.
+// parseRoundTimes parses the round_times CSV field into seconds.
 // Multiple round values separated by " / " are averaged.
 // Formats: "57s", "6:05m", "6:15", "3:39s", "39" — colon means M:SS, else bare seconds.
 func parseRoundTimes(s, exerciseType string) int {
-	if exerciseType != "cardio" || s == "" {
+	if s == "" {
 		return 0
 	}
 	parts := strings.Split(s, " / ")
