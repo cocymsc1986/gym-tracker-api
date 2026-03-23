@@ -102,6 +102,9 @@ func main() {
 					s := exercise.Sets[0]
 					setsDesc += fmt.Sprintf("[reps=%d weight=%.1f%s]", s.Reps, s.Weight, s.Unit)
 				}
+				if exercise.Reps > 0 {
+					setsDesc += fmt.Sprintf(" reps=%d", exercise.Reps)
+				}
 				fmt.Printf("  [exercise] %-30s %-8s %s dist=%.0f%s time=%ds\n",
 					exercise.Name, exercise.ExerciseType,
 					setsDesc,
@@ -213,10 +216,11 @@ func buildExercise(row []string) *models.Exercise {
 		Time:         parseRoundTimes(roundTimes, exerciseType),
 	}
 
-	// Build Sets for any exercise where sets > 0 (weights, other bodyweight, cardio intervals).
-	// If sets is blank/0 but weight or reps is present (e.g. a distance-based lunges entry
-	// with weight but no explicit set count), preserve that data in a single item so it
-	// is not silently dropped.
+	// Build Sets for weight/cardio/other exercises that have an explicit set count.
+	// For "other" exercises with no sets and no weight, store reps at the exercise
+	// level (Exercise.Reps) rather than wrapping them in a fake WeightItem.
+	// For all other cases where sets=0 but weight>0, fall back to a single WeightItem
+	// so the weight is not silently dropped (e.g. a distance-based lunges entry).
 	if sets > 0 {
 		items := make([]models.WeightItem, sets)
 		for i := range items {
@@ -227,7 +231,11 @@ func buildExercise(row []string) *models.Exercise {
 			}
 		}
 		exercise.Sets = items
-	} else if weight > 0 || reps > 0 {
+	} else if exerciseType == "other" && weight == 0 && reps > 0 {
+		// Plain rep count for an other exercise with no set structure (e.g. "30 sit-ups").
+		exercise.Reps = reps
+	} else if weight > 0 {
+		// Weighted distance exercise with no explicit set count — preserve weight.
 		exercise.Sets = []models.WeightItem{{
 			Weight: weight,
 			Unit:   weightUnit,

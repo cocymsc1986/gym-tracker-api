@@ -9,11 +9,11 @@ terraform/lambda.zip
 terraform-provider-*
 License.txt
 
-# Build artifacts
-main
-analyze
-import
-reset
+# Build artifacts (root-level compiled binaries)
+/main
+/analyze
+/import
+/reset
 **/lambda.zip
 *.zip
 
