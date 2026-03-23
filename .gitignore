@@ -11,6 +11,9 @@ License.txt
 
 # Build artifacts
 main
+analyze
+import
+reset
 **/lambda.zip
 *.zip
 
