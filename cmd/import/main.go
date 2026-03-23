@@ -33,9 +33,23 @@ const (
 	colDistance     = 8
 	colDistanceUnit = 9
 	colRoundTimes   = 10
-	// colEffort = 11  // not mapped — Level left as zero value
+	// colEffort = 11  // mapped to Effort/Level — not used
 	// colNotes  = 12  // no matching model field
 )
+
+// bodyWeightExercises is the set of exercise names (lower-cased) that map to the
+// body_weight type regardless of what the CSV type column says.
+var bodyWeightExercises = map[string]bool{
+	"push ups":   true,
+	"push-ups":   true,
+	"sit ups":    true,
+	"sit-ups":    true,
+	"plank":      true,
+	"in and out": true,
+	"burpees":    true,
+	"lunges":     true,
+	"back lunges": false, // weighted — keep as weights when weight>0
+}
 
 type workoutGroup struct {
 	date    string
@@ -91,35 +105,33 @@ func main() {
 	totalExercises := 0
 
 	for _, group := range groups {
-		exerciseIDs := make([]string, 0, len(group.rows))
+		exerciseIDs := make([]string, 0)
 
 		for _, row := range group.rows {
-			exercise := buildExercise(row)
+			exercises := buildExercises(row)
 
-			if *dryRun {
-				setsDesc := fmt.Sprintf("sets=%d", len(exercise.Sets))
-				if len(exercise.Sets) > 0 {
-					s := exercise.Sets[0]
-					setsDesc += fmt.Sprintf("[reps=%d weight=%.1f%s]", s.Reps, s.Weight, s.Unit)
+			for _, exercise := range exercises {
+				if *dryRun {
+					setsDesc := fmt.Sprintf("sets=%d", len(exercise.Sets))
+					if len(exercise.Sets) > 0 {
+						s := exercise.Sets[0]
+						setsDesc += fmt.Sprintf("[reps=%d dur=%ds weight=%.1f%s]", s.Reps, s.Duration, s.Weight, s.Unit)
+					}
+					fmt.Printf("  [exercise] %-30s %-12s %s dist=%.0f%s time=%ds\n",
+						exercise.Name, exercise.ExerciseType,
+						setsDesc,
+						exercise.Distance, exercise.DistanceUnit,
+						exercise.Time)
+				} else {
+					if err := exerciseRepo.Create(*userID, exercise); err != nil {
+						log.Printf("WARNING: failed to create exercise %q in workout %s/%s: %v",
+							exercise.Name, group.date, group.session, err)
+						continue
+					}
 				}
-				if exercise.Reps > 0 {
-					setsDesc += fmt.Sprintf(" reps=%d", exercise.Reps)
-				}
-				fmt.Printf("  [exercise] %-30s %-8s %s dist=%.0f%s time=%ds\n",
-					exercise.Name, exercise.ExerciseType,
-					setsDesc,
-					exercise.Distance, exercise.DistanceUnit,
-					exercise.Time)
-			} else {
-				if err := exerciseRepo.Create(*userID, exercise); err != nil {
-					log.Printf("WARNING: failed to create exercise %q in workout %s/%s: %v",
-						exercise.Name, group.date, group.session, err)
-					continue
-				}
+				exerciseIDs = append(exerciseIDs, exercise.ExerciseID)
+				totalExercises++
 			}
-
-			exerciseIDs = append(exerciseIDs, exercise.ExerciseID)
-			totalExercises++
 		}
 
 		workout := &models.Workout{
@@ -144,6 +156,243 @@ func main() {
 	}
 
 	fmt.Printf("\nDone. %d workouts, %d exercises processed.\n", totalWorkouts, totalExercises)
+}
+
+// buildExercises converts one CSV row into one or more Exercise records.
+// Multi-set cardio/body_weight rows are split into one Exercise per set.
+// Warm Up (Cardio) rows are dropped (returns nil).
+func buildExercises(row []string) []*models.Exercise {
+	name := field(row, colExercise)
+	csvType := field(row, colType)
+
+	// Drop warm-up rows
+	if strings.EqualFold(name, "warm up (cardio)") || strings.EqualFold(name, "warm up") {
+		return nil
+	}
+
+	sets := parseInt(field(row, colSets))
+	reps := parseInt(field(row, colReps))
+	weight := parseFloat(field(row, colWeight))
+	weightUnit := field(row, colWeightUnit)
+	distance := parseFloat(field(row, colDistance))
+	distanceUnit := field(row, colDistanceUnit)
+	roundTimes := field(row, colRoundTimes)
+
+	exerciseType := resolveType(name, csvType, weight)
+
+	switch exerciseType {
+	case models.ExerciseTypeCardio:
+		return buildCardioExercises(name, sets, reps, weight, weightUnit, distance, distanceUnit, roundTimes)
+	case models.ExerciseTypeBodyWeight:
+		return buildBodyWeightExercises(name, sets, reps, distance, distanceUnit, roundTimes)
+	default: // weights, other
+		return buildWeightExercises(name, exerciseType, sets, reps, weight, weightUnit, distance, distanceUnit)
+	}
+}
+
+// resolveType determines the effective ExerciseType for a row.
+// CSV type is used as-is for weights/other, but:
+//   - "other" exercises that are bodyweight exercises → "body_weight"
+//   - "other" with distance and no weight → "body_weight"
+func resolveType(name, csvType string, weight float64) string {
+	lower := strings.ToLower(name)
+	switch csvType {
+	case models.ExerciseTypeWeights:
+		return models.ExerciseTypeWeights
+	case models.ExerciseTypeCardio:
+		return models.ExerciseTypeCardio
+	case models.ExerciseTypeBodyWeight:
+		return models.ExerciseTypeBodyWeight
+	case models.ExerciseTypeOther:
+		if bodyWeightExercises[lower] || (weight == 0) {
+			return models.ExerciseTypeBodyWeight
+		}
+		return models.ExerciseTypeOther
+	default:
+		return csvType
+	}
+}
+
+// buildCardioExercises handles cardio rows.
+// If round_times is present: split into one Exercise per time value.
+// Ski Erg with reps (calories): reps → distance, unit = "cal".
+// Weighted Walk: combine sets into one row, multiply distance by sets.
+func buildCardioExercises(name string, sets, reps int, weight float64, weightUnit string, distance float64, distanceUnit, roundTimes string) []*models.Exercise {
+	lower := strings.ToLower(name)
+
+	// Weighted Walk: combine sets into a single row with total distance
+	if lower == "weighted walk" {
+		effectiveSets := sets
+		if effectiveSets == 0 {
+			effectiveSets = 1
+		}
+		e := newExercise(name, models.ExerciseTypeCardio)
+		e.Distance = distance * float64(effectiveSets)
+		e.DistanceUnit = distanceUnit
+		if weight > 0 {
+			e.Sets = []models.WeightItem{{Weight: weight, Unit: weightUnit}}
+		}
+		return []*models.Exercise{e}
+	}
+
+	// Ski Erg with reps = calories (no distance column populated)
+	if lower == "ski erg" && reps > 0 && distance == 0 {
+		return splitPerSet(name, models.ExerciseTypeCardio, sets, func(i int, e *models.Exercise) {
+			e.Distance = float64(reps)
+			e.DistanceUnit = "cal"
+		})
+	}
+
+	// Cardio with round_times: split one Exercise per time
+	if roundTimes != "" {
+		times := parseRoundTimeList(roundTimes)
+		result := make([]*models.Exercise, 0, len(times))
+		for _, t := range times {
+			e := newExercise(name, models.ExerciseTypeCardio)
+			e.Distance = distance
+			e.DistanceUnit = distanceUnit
+			e.Time = t
+			if weight > 0 {
+				e.Sets = []models.WeightItem{{Weight: weight, Unit: weightUnit}}
+			}
+			result = append(result, e)
+		}
+		return result
+	}
+
+	// Cardio with sets but no round_times: split into per-set rows
+	if sets > 1 {
+		return splitPerSet(name, models.ExerciseTypeCardio, sets, func(i int, e *models.Exercise) {
+			e.Distance = distance
+			e.DistanceUnit = distanceUnit
+			if weight > 0 {
+				e.Sets = []models.WeightItem{{Weight: weight, Unit: weightUnit}}
+			}
+		})
+	}
+
+	// Single-set cardio
+	e := newExercise(name, models.ExerciseTypeCardio)
+	e.Distance = distance
+	e.DistanceUnit = distanceUnit
+	if reps > 0 && distance == 0 {
+		// reps = calories (e.g. Ski Erg)
+		e.Distance = float64(reps)
+		e.DistanceUnit = "cal"
+	}
+	return []*models.Exercise{e}
+}
+
+// buildBodyWeightExercises handles body_weight rows.
+// Plank: if round_times present, split per time value with Duration.
+//        if reps present, treat reps as duration (seconds) per set.
+// Other: split into one Exercise per set, each with Sets=[WeightItem{Reps}].
+// Distance-based (lunges): split per set, each with Distance.
+func buildBodyWeightExercises(name string, sets, reps int, distance float64, distanceUnit, roundTimes string) []*models.Exercise {
+	lower := strings.ToLower(name)
+	isPlank := lower == "plank"
+
+	if isPlank {
+		if roundTimes != "" {
+			// Split on individual times → Duration per set
+			times := parseRoundTimeList(roundTimes)
+			result := make([]*models.Exercise, 0, len(times))
+			for _, t := range times {
+				e := newExercise(name, models.ExerciseTypeBodyWeight)
+				e.Sets = []models.WeightItem{{Duration: t}}
+				result = append(result, e)
+			}
+			return result
+		}
+		// reps = duration in seconds
+		if reps > 0 {
+			effectiveSets := sets
+			if effectiveSets == 0 {
+				effectiveSets = 1
+			}
+			return splitPerSet(name, models.ExerciseTypeBodyWeight, effectiveSets, func(i int, e *models.Exercise) {
+				e.Sets = []models.WeightItem{{Duration: reps}}
+			})
+		}
+	}
+
+	// Distance-based bodyweight exercise (e.g. Lunges with distance)
+	if distance > 0 {
+		effectiveSets := sets
+		if effectiveSets == 0 {
+			effectiveSets = 1
+		}
+		return splitPerSet(name, models.ExerciseTypeBodyWeight, effectiveSets, func(i int, e *models.Exercise) {
+			e.Distance = distance
+			e.DistanceUnit = distanceUnit
+			e.Sets = []models.WeightItem{{Reps: reps}}
+		})
+	}
+
+	// Standard reps-based bodyweight exercise
+	effectiveSets := sets
+	if effectiveSets == 0 {
+		effectiveSets = 1
+	}
+	return []*models.Exercise{buildRepsExercise(name, models.ExerciseTypeBodyWeight, effectiveSets, reps, 0, "")}
+}
+
+// buildWeightExercises handles weights and other rows.
+// These are kept as a single Exercise with Sets []WeightItem.
+func buildWeightExercises(name, exerciseType string, sets, reps int, weight float64, weightUnit string, distance float64, distanceUnit string) []*models.Exercise {
+	e := newExercise(name, exerciseType)
+	e.Distance = distance
+	e.DistanceUnit = distanceUnit
+
+	if sets > 0 {
+		items := make([]models.WeightItem, sets)
+		for i := range items {
+			items[i] = models.WeightItem{
+				Weight: weight,
+				Unit:   weightUnit,
+				Reps:   reps,
+			}
+		}
+		e.Sets = items
+	} else if weight > 0 {
+		// Weighted exercise with no explicit set count — preserve weight
+		e.Sets = []models.WeightItem{{Weight: weight, Unit: weightUnit, Reps: reps}}
+	} else if reps > 0 {
+		// No sets, no weight — single-set rep-only entry
+		e.Sets = []models.WeightItem{{Reps: reps}}
+	}
+
+	return []*models.Exercise{e}
+}
+
+// buildRepsExercise creates a single Exercise with n identical WeightItem sets.
+func buildRepsExercise(name, exerciseType string, sets, reps int, weight float64, weightUnit string) *models.Exercise {
+	e := newExercise(name, exerciseType)
+	items := make([]models.WeightItem, sets)
+	for i := range items {
+		items[i] = models.WeightItem{Weight: weight, Unit: weightUnit, Reps: reps}
+	}
+	e.Sets = items
+	return e
+}
+
+// splitPerSet creates `n` Exercise records, calling configure(i, e) on each.
+func splitPerSet(name, exerciseType string, n int, configure func(i int, e *models.Exercise)) []*models.Exercise {
+	result := make([]*models.Exercise, n)
+	for i := 0; i < n; i++ {
+		e := newExercise(name, exerciseType)
+		configure(i, e)
+		result[i] = e
+	}
+	return result
+}
+
+func newExercise(name, exerciseType string) *models.Exercise {
+	return &models.Exercise{
+		ExerciseID:   uuid.New().String(),
+		Name:         name,
+		ExerciseType: exerciseType,
+	}
 }
 
 // parseCSV reads the file and returns ordered workout groups preserving CSV row order.
@@ -194,93 +443,33 @@ func parseCSV(path string) ([]workoutGroup, error) {
 	return result, nil
 }
 
-// buildExercise constructs a models.Exercise from one CSV row.
-func buildExercise(row []string) *models.Exercise {
-	name := field(row, colExercise)
-	exerciseType := field(row, colType)
-
-	sets := parseInt(field(row, colSets))
-	reps := parseInt(field(row, colReps))
-	weight := parseFloat(field(row, colWeight))
-	weightUnit := field(row, colWeightUnit)
-	distance := parseFloat(field(row, colDistance))
-	distanceUnit := field(row, colDistanceUnit)
-	roundTimes := field(row, colRoundTimes)
-
-	exercise := &models.Exercise{
-		ExerciseID:   uuid.New().String(),
-		Name:         name,
-		ExerciseType: exerciseType,
-		Distance:     distance,
-		DistanceUnit: distanceUnit,
-		Time:         parseRoundTimes(roundTimes, exerciseType),
-	}
-
-	// Build Sets for weight/cardio/other exercises that have an explicit set count.
-	// For "other" exercises with no sets and no weight, store reps at the exercise
-	// level (Exercise.Reps) rather than wrapping them in a fake WeightItem.
-	// For all other cases where sets=0 but weight>0, fall back to a single WeightItem
-	// so the weight is not silently dropped (e.g. a distance-based lunges entry).
-	if sets > 0 {
-		items := make([]models.WeightItem, sets)
-		for i := range items {
-			items[i] = models.WeightItem{
-				Weight: weight, // 0 for bodyweight exercises
-				Unit:   weightUnit,
-				Reps:   reps,
-			}
-		}
-		exercise.Sets = items
-	} else if exerciseType == "other" && weight == 0 && reps > 0 {
-		// Plain rep count for an other exercise with no set structure (e.g. "30 sit-ups").
-		exercise.Reps = reps
-	} else if weight > 0 {
-		// Weighted distance exercise with no explicit set count — preserve weight.
-		exercise.Sets = []models.WeightItem{{
-			Weight: weight,
-			Unit:   weightUnit,
-			Reps:   reps,
-		}}
-	}
-
-	return exercise
-}
-
-// parseRoundTimes parses the round_times CSV field into seconds.
-// Multiple round values separated by " / " are averaged.
-// Formats: "57s", "6:05m", "6:15", "3:39s", "39" — colon means M:SS, else bare seconds.
-func parseRoundTimes(s, exerciseType string) int {
-	if s == "" {
-		return 0
-	}
+// parseRoundTimeList splits a round_times string on " / " and parses each value into seconds.
+// E.g. "3:41m / 3:38m / 3:38m" → [221, 218, 218]
+func parseRoundTimeList(s string) []int {
 	parts := strings.Split(s, " / ")
-	total := 0
-	count := 0
+	var result []int
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
 		if p == "" {
 			continue
 		}
-		var secs int
-		if strings.Contains(p, ":") {
-			// M:SS format — strip any trailing letter then split on ":"
-			p = strings.TrimRight(p, "ms")
-			halves := strings.SplitN(p, ":", 2)
-			mins := parseInt(halves[0])
-			seconds := parseInt(halves[1])
-			secs = mins*60 + seconds
-		} else {
-			// bare seconds — strip trailing letter
-			p = strings.TrimRight(p, "ms")
-			secs = parseInt(p)
-		}
-		total += secs
-		count++
+		result = append(result, parseSingleTime(p))
 	}
-	if count == 0 {
-		return 0
+	return result
+}
+
+// parseSingleTime parses a single time string into seconds.
+// Formats: "57s", "6:05m", "6:15", "3:39s", "45s", "39"
+func parseSingleTime(p string) int {
+	if strings.Contains(p, ":") {
+		// M:SS format — strip trailing letter then split on ":"
+		p = strings.TrimRight(p, "ms")
+		halves := strings.SplitN(p, ":", 2)
+		return parseInt(halves[0])*60 + parseInt(halves[1])
 	}
-	return total / count
+	// Bare seconds — strip trailing letter
+	p = strings.TrimRight(p, "ms")
+	return parseInt(p)
 }
 
 func field(row []string, idx int) string {
