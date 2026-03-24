@@ -130,7 +130,7 @@ func (h *WorkoutHandler) ListExercisesInWorkout(w http.ResponseWriter, r *http.R
 	userID := vars["userId"]
 	workoutID := vars["workoutId"]
 
-	workout, err := h.service.GetWorkout(workoutID, userID)
+	workout, err := h.service.GetWorkout(userID, workoutID)
 	if err != nil {
 		utils.WriteErrorResponse(w, err)
 		return
