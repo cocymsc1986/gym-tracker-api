@@ -34,7 +34,7 @@ type Exercise struct {
 	Time         int          `json:"time,omitempty"`
 	Distance     float64      `json:"distance,omitempty"`
 	DistanceUnit string       `json:"distanceUnit,omitempty"`
-	Level        int          `json:"level,omitempty"`
+	Level        float64      `json:"level,omitempty"`
 	Reps         int          `json:"reps,omitempty"`
 	Sets         []WeightItem `json:"sets,omitempty"`
 }
