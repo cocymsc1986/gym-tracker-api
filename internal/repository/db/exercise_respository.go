@@ -106,6 +106,10 @@ func (r *DynamoExerciseRepository) Update(userID string, exercise *models.Exerci
 		return fmt.Errorf("failed to marshal exercise: %w", err)
 	}
 
+	av["UserID"] = &dynamodb.AttributeValue{
+		S: aws.String(userID),
+	}
+
 	_, err = r.db.PutItem(&dynamodb.PutItemInput{
 		TableName: aws.String(r.tableName),
 		Item:      av,
