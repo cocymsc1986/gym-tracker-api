@@ -87,6 +87,8 @@ func main() {
 	r.HandleFunc("/auth/confirm", authHandler.ConfirmSignUp).Methods("POST")
 	r.HandleFunc("/auth/signin", authHandler.SignIn).Methods("POST")
 	r.HandleFunc("/auth/refresh", authHandler.RefreshToken).Methods("POST")
+	r.HandleFunc("/auth/reset", authHandler.ForgotPassword).Methods("POST")
+	r.HandleFunc("/auth/reset/confirm", authHandler.ConfirmForgotPassword).Methods("POST")
 	
 	// Protected routes (authentication required)
 	r.HandleFunc("/workouts/{userId}", authMiddleware.Authenticate(workoutHandler.ListWorkouts)).Methods("GET")
