@@ -122,6 +122,58 @@ func (a *AuthHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(authResponse)
 }
 
+func (a *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var reqData struct {
+		Email string `json:"email"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&reqData); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid JSON"})
+		return
+	}
+
+	_, err := a.cognito.ForgotPassword(&cognitoidentityprovider.ForgotPasswordInput{
+		ClientId: aws.String(os.Getenv("COGNITO_CLIENT_ID")),
+		Username: aws.String(reqData.Email),
+	})
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Password reset code sent to your email."})
+}
+
+func (a *AuthHandler) ConfirmForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var reqData struct {
+		Email       string `json:"email"`
+		Code        string `json:"code"`
+		NewPassword string `json:"new_password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&reqData); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid JSON"})
+		return
+	}
+
+	_, err := a.cognito.ConfirmForgotPassword(&cognitoidentityprovider.ConfirmForgotPasswordInput{
+		ClientId:         aws.String(os.Getenv("COGNITO_CLIENT_ID")),
+		Username:         aws.String(reqData.Email),
+		ConfirmationCode: aws.String(reqData.Code),
+		Password:         aws.String(reqData.NewPassword),
+	})
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Password reset successfully."})
+}
+
 func (a *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	var reqData struct {
 		RefreshToken string `json:"refresh_token"`
