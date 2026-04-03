@@ -37,6 +37,7 @@ type Exercise struct {
 	Level        float64      `json:"level,omitempty"`
 	Reps         int          `json:"reps,omitempty"`
 	Sets         []WeightItem `json:"sets,omitempty"`
+	RPM          float64      `json:"rpm,omitempty"`
 }
 
 func (e *Exercise) Validate() error {
