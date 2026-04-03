@@ -56,16 +56,23 @@ func (h *ExerciseHandler) ListExercisesByName(w http.ResponseWriter, r *http.Req
 	utils.WriteJSONResponse(w, exercise, http.StatusOK)
 }
 
+type exerciseRequest struct {
+	models.Exercise
+	StoreRPM bool `json:"storeRpm"`
+}
+
 func (h *ExerciseHandler) CreateExercise(w http.ResponseWriter, r *http.Request) {
-	var exercise models.Exercise
 	vars := mux.Vars(r)
 	userId := vars["userId"]
-	if err := utils.DecodeJSON(r.Body, &exercise); err != nil {
+
+	var req exerciseRequest
+	if err := utils.DecodeJSON(r.Body, &req); err != nil {
 		utils.WriteErrorResponse(w, err)
 		return
 	}
 
-	if err := h.service.CreateExercise(userId, &exercise); err != nil {
+	exercise := req.Exercise
+	if err := h.service.CreateExercise(userId, &exercise, req.StoreRPM); err != nil {
 		utils.WriteErrorResponse(w, err)
 		return
 	}
@@ -78,13 +85,14 @@ func (h *ExerciseHandler) UpdateExercise(w http.ResponseWriter, r *http.Request)
 	userID := vars["userId"]
 	exerciseID := vars["exerciseId"]
 
-	var exercise models.Exercise
-	if err := utils.DecodeJSON(r.Body, &exercise); err != nil {
+	var req exerciseRequest
+	if err := utils.DecodeJSON(r.Body, &req); err != nil {
 		utils.WriteErrorResponse(w, err)
 		return
 	}
 
-	if err := h.service.UpdateExercise(userID, exerciseID, &exercise); err != nil {
+	exercise := req.Exercise
+	if err := h.service.UpdateExercise(userID, exerciseID, &exercise, req.StoreRPM); err != nil {
 		utils.WriteErrorResponse(w, err)
 		return
 	}
