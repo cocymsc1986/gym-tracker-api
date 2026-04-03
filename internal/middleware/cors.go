@@ -45,13 +45,27 @@ func (c *CORSMiddleware) Handler(next http.Handler) http.Handler {
 	})
 }
 
+// stripWWW removes a leading "www." from the host portion of an origin URL.
+// e.g. "https://www.foo.com" -> "https://foo.com"
+func stripWWW(origin string) string {
+	for _, scheme := range []string{"https://", "http://"} {
+		if strings.HasPrefix(origin, scheme+"www.") {
+			return scheme + origin[len(scheme+"www."):]
+		}
+	}
+	return origin
+}
+
 func (c *CORSMiddleware) isOriginAllowed(origin string) bool {
 	if origin == "" {
 		return false
 	}
-	
+
+	// Normalize www so "https://www.foo.com" matches an allowlist entry of "https://foo.com"
+	normalized := stripWWW(origin)
+
 	for _, allowedOrigin := range c.allowedOrigins {
-		if allowedOrigin == "*" || allowedOrigin == origin {
+		if allowedOrigin == "*" || allowedOrigin == origin || allowedOrigin == normalized {
 			return true
 		}
 		// Support wildcard subdomains
@@ -62,6 +76,6 @@ func (c *CORSMiddleware) isOriginAllowed(origin string) bool {
 			}
 		}
 	}
-	
+
 	return false
 }
