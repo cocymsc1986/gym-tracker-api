@@ -168,6 +168,73 @@ the binary be named `bootstrap`.
 
 ---
 
+## Dev mode (no AWS dependencies)
+
+The API can run fully self-contained — no AWS credentials, no DynamoDB,
+no Cognito — by setting `DEV_MODE=true`. In dev mode:
+
+- Repositories are **in-memory** (`internal/repository/memory`). Data
+  resets on every process start.
+- The `Authorization` header is **not checked** — any request reaches
+  the handlers.
+- `/auth/*` endpoints return **shaped stub responses** so callers can
+  exercise the full sign-in flow without a real Cognito.
+- Data is **seeded at boot** under the well-known user ID `dev-user`
+  (2 workouts, 3 exercises across all three exercise types).
+- `/auth/signin` returns a `user_id` field in addition to the standard
+  `AuthResponse`, so callers don't need to decode the token.
+
+Production code paths are untouched: when `DEV_MODE` is unset, behavior
+is identical to before.
+
+### Run with Go directly
+
+```bash
+DEV_MODE=true go run ./cmd/api
+# Dev server listening on :8080 (seeded user: dev-user)
+```
+
+### Run with Docker (recommended for QA agents)
+
+```bash
+docker build -t gym-tracker-api:dev .
+docker run --rm -p 8080:8080 gym-tracker-api:dev
+```
+
+The image bakes `DEV_MODE=true`, `PORT=8080`, and `CORS_ALLOWED_ORIGINS=*`
+as defaults; override any of them with `-e`. The Dockerfile uses a
+multi-stage Go build (1.21-alpine → alpine:3.19) and exposes a
+healthcheck against `/exercises/dev-user`.
+
+### Smoke test the dev API
+
+```bash
+# Get a (stub) token + user id
+curl -s -X POST http://localhost:8080/auth/signin \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"qa@test","password":"x"}'
+# {"access_token":"dev-access-token","refresh_token":"dev-refresh-token",
+#  "token_type":"Bearer","expires_in":3600,"user_id":"dev-user"}
+
+# List seeded workouts
+curl -s http://localhost:8080/workouts/dev-user
+
+# List seeded exercises
+curl -s http://localhost:8080/exercises/dev-user
+
+# Create a new workout (Authorization header is accepted but not required)
+curl -s -X POST http://localhost:8080/workouts/dev-user \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer dev-access-token' \
+  -d '{"name":"My Workout","date":"2026-06-16"}'
+```
+
+To test against a real DynamoDB / Cognito backend, leave `DEV_MODE`
+unset and supply the env vars listed in the [Configuration](#configuration)
+section above.
+
+---
+
 ## Companion tools
 
 All three live under `cmd/` and ship with their own READMEs.

@@ -60,6 +60,11 @@ func setupHandlers() (*handlers.WorkoutHandler, *handlers.ExerciseHandler, *hand
 } 
 
 func main() {
+	if os.Getenv("DEV_MODE") == "true" {
+		runDev()
+		return
+	}
+
 	// Initialize handlers with proper dependency injection
 	workoutHandler, exerciseHandler, authHandler := setupHandlers()
 	

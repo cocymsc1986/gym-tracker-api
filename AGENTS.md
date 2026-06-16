@@ -203,14 +203,69 @@ Run a single test: `go test ./internal/services -run TestCalculateRPM_KM`.
 
 ```bash
 go test ./...                          # full test suite (also runs in CI)
-go run ./cmd/api                       # local HTTP server on :8080
+go run ./cmd/api                       # local HTTP server on :8080 (needs AWS env)
+DEV_MODE=true go run ./cmd/api         # local HTTP server, in-memory, no AWS deps
 ./build.sh                             # produce lambda.zip (local packaging)
+docker build -t gym-tracker-api:dev .  # build the dev container
+docker run --rm -p 8080:8080 gym-tracker-api:dev
 go run ./cmd/import --user-id ... --file ... --env test --dry-run
 go run ./cmd/analyze --file ...
 go run ./cmd/reset  --user-id ... --env test --dry-run
 go fmt ./...
 go vet ./...
 ```
+
+---
+
+## Dev mode (`DEV_MODE=true`)
+
+Used by QA agents and local hacking. All dev-only code is isolated:
+
+- `cmd/api/dev.go` — `runDev()`, stub auth handlers, seed data. Only
+  reached when `DEV_MODE=true`; `main.go` has a 4-line branch at the
+  top that returns into it.
+- `internal/repository/memory/` — `WorkoutRepository` and
+  `ExerciseRepository` implementations of the same interfaces the
+  Dynamo repos satisfy. Thread-safe (`sync.RWMutex`), store value
+  copies (no aliasing), mirror Dynamo error messages ("workout not
+  found" etc.) so service-layer behavior is consistent.
+
+Behavior contract dev mode must preserve:
+
+- `Authorization` header is **accepted but not validated**. Pass-through
+  middleware only.
+- All `/auth/*` routes return shape-correct JSON. `/auth/signin`
+  returns a real `handlers.AuthResponse` plus a `user_id: "dev-user"`
+  field for callers that don't decode tokens.
+- Seed data is created on boot under `DevUserID = "dev-user"`.
+  Currently 2 workouts and 3 exercises (weights / cardio /
+  body_weight). The exact contents can change but a QA agent should
+  always be able to `GET /workouts/dev-user` and find at least one
+  workout immediately after start.
+- Data resets when the process restarts. No persistence.
+
+Rules when changing dev mode:
+
+1. **Never make production code depend on `cmd/api/dev.go` or
+   `internal/repository/memory`.** Those packages are only reachable
+   from the dev branch. If you find yourself wanting to share code
+   between dev wiring and prod wiring, prefer to extract a helper
+   into a neutral package rather than have prod import dev code.
+2. **Keep the dev branch self-contained.** The whole `runDev()` flow
+   should boot to a serving HTTP listener with `DEV_MODE=true` and
+   nothing else set.
+3. **Route parity matters.** Every route registered in `main.go` must
+   also be registered in `runDev()`, otherwise dev becomes a
+   misleading test target. If you add a new route in `main.go`, mirror
+   it in `runDev()`.
+4. **Don't add real Cognito calls to dev handlers.** The point is no
+   network dependencies. If you need richer auth behavior in dev, fake
+   it in `dev.go`.
+
+The Dockerfile (`Dockerfile` at the repo root) bakes `DEV_MODE=true`
+into the image so `docker run -p 8080:8080 gym-tracker-api:dev` works
+with no flags. Don't repurpose this image for prod — there's no
+`bootstrap` binary and no Lambda adapter wiring.
 
 ---
 

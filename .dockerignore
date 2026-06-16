@@ -1,0 +1,16 @@
+.git
+.github
+.vscode
+terraform
+*.zip
+/main
+/bootstrap
+/analyze
+/import
+/reset
+__debug_*
+.env
+.env.*
+*.md
+Dockerfile
+.dockerignore
