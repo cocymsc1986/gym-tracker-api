@@ -27,7 +27,7 @@ jobs:
 
       - name: Build Go Binary
         run: |
-          GOOS=linux GOARCH=amd64 go build -o main ./cmd/api/main.go
+          GOOS=linux GOARCH=amd64 go build -o main ./cmd/api
 
       - name: Verify Binary
         run: |

@@ -12,7 +12,7 @@ rm -f main lambda.zip
 
 # Build the Go binary for Linux (Lambda runtime)
 echo "🔨 Compiling Go binary for Linux..."
-GOOS=linux GOARCH=amd64 go build -o main ./cmd/api/main.go
+GOOS=linux GOARCH=amd64 go build -o main ./cmd/api
 
 # Verify the binary was created
 if [ ! -f "main" ]; then
